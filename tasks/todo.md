@@ -19,3 +19,4 @@ Spec: docs/superpowers/specs/2026-09-04-private-inference-network-design.md
 
 ## Review notes
 - Task 7 (2026-09-04): deployed to devnet via https://rpc.magicblock.app/devnet. Program ID HWeUskL1BSdZid4xsbSMBeZ4YH4FsTiYpdXDFZKzyBoe, deploy sig 3V2KAtzTXoBcAKCMKTCYCJbeSA2FYS4NG6uTv88uSHnrm5nPjaeY4yU8LvRXu2mdvgekErdUD5JhRGxXrQNySaRo, slot 493040344, authority 5GD6aDwN9DP12QjMy14X9zaw8Zun4d64cnKKK4anhkjV. Public api.devnet RPC throttled the first attempt ("Max retries exceeded"); use `solana program deploy ... -u https://rpc.magicblock.app/devnet --use-rpc --max-sign-attempts 60` and `solana program close --buffers -u https://api.devnet.solana.com` to reclaim a failed buffer.
+- Redeploy (2026-09-04) after finish.rs fix: slot 493052648, sig 2kVUvctUpKCfmqG9H4cfFSW3kjhWjmq5k8vGNiS47pjCy5Syw8tYptgxBSG3tKV5N6GxAriNXt3upbWQLHSbdb72.
