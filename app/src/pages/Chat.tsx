@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PROMPT_MAX } from "@inference-market/client";
 import { Message } from "../components/Message";
 import { PillMenu } from "../components/PillMenu";
+import { WalletChip } from "../components/WalletChip";
 import { CloseIcon, MenuIcon, Mark, PlusIcon, SendIcon } from "../components/icons";
 import { useActionEscrow } from "../hooks/useActionEscrow";
 import { useChat } from "../hooks/useChat";
@@ -9,8 +10,8 @@ import type { Market } from "../hooks/useMarket";
 import { useNow } from "../hooks/useNow";
 import { useTee } from "../hooks/useTee";
 import { useBalance } from "../hooks/useBalance";
-import { contextBytes, groupByDay } from "../lib/chat";
-import { LAMPORTS, byteLen, capBytes, shortKey } from "../lib/format";
+import { DRAFT_MAX, capBytes, contextBytes, groupByDay } from "../lib/chat";
+import { LAMPORTS, byteLen, shortKey } from "../lib/format";
 import { Link } from "../router";
 import { useNotify } from "../notify";
 
@@ -54,8 +55,12 @@ export function Chat({ market }: { market: Market }) {
   const groups = useMemo(() => groupByDay(chat.convs), [chat.convs]);
 
   const history = active?.messages ?? [];
+  const draftBytes = byteLen(draft);
   const ctx = useMemo(() => contextBytes(history, draft), [history, draft]);
-  const over = ctx > PROMPT_MAX;
+  // `buildPrompt` drops the oldest turns to fit, so only an oversized draft can
+  // block a send. The counter the user watches is the draft's own budget.
+  const draftTooLong = draftBytes > DRAFT_MAX;
+  const historyTrimmed = ctx >= PROMPT_MAX && !draftTooLong;
 
   // Grow the box with its content, up to the CSS max-height.
   useEffect(() => {
@@ -69,16 +74,34 @@ export function Chat({ market }: { market: Market }) {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [history.length, active?.id]);
 
+  const connect = useCallback(() => {
+    notify("err", "connect a wallet to send");
+    document.querySelector<HTMLButtonElement>(".wallet-adapter-button")?.click();
+  }, [notify]);
+
   const submit = useCallback(() => {
     const text = draft.trim();
-    if (!text || chat.busy || over) return;
+    if (!text || chat.busy || draftTooLong) return;
+    if (!owner) {
+      connect();
+      return;
+    }
     if (!chat.ready) {
-      notify("err", owner ? "opening the rollup session…" : "connect a wallet first");
+      notify("err", "opening the rollup session…");
       return;
     }
     setDraft("");
     void chat.send(text);
-  }, [chat, draft, notify, over, owner]);
+  }, [chat, connect, draft, draftTooLong, notify, owner]);
+
+  const useExample = useCallback(
+    (text: string) => {
+      setDraft(capBytes(text, DRAFT_MAX));
+      if (!owner) connect();
+      else boxRef.current?.focus();
+    },
+    [connect, owner],
+  );
 
   const decide = useCallback(
     (msgId: string, kind: "approve" | "reject") => {
@@ -88,17 +111,28 @@ export function Chat({ market }: { market: Market }) {
     [active, actionEscrow.funded, chat],
   );
 
-  // Auto-approve on read, per conversation.
+  /**
+   * Auto-approve on read. Gated on `decisionAttempted`, so a failed decision is
+   * never retried automatically, and keyed on the target message so a keystroke
+   * cannot restart the timer.
+   */
+  const convId = active?.id ?? null;
+  const autoOn = Boolean(active?.autoApprove);
+  const autoTarget = active?.messages.find(
+    (m) => m.state === "submitted" && m.text && !m.decisionAttempted,
+  );
+  const autoTargetId = autoTarget?.id ?? null;
+  const decideRef = useRef(chat.decide);
+  decideRef.current = chat.decide;
+
   useEffect(() => {
-    if (!active?.autoApprove) return;
-    const target = active.messages.find((m) => m.state === "submitted" && m.text);
-    if (!target) return;
+    if (!autoOn || !convId || !autoTargetId) return;
     const id = window.setTimeout(
-      () => void chat.decide(active.id, target.id, "approve", actionEscrow.funded),
+      () => void decideRef.current(convId, autoTargetId, "approve", actionEscrow.funded),
       600,
     );
     return () => window.clearTimeout(id);
-  }, [active, actionEscrow.funded, chat]);
+  }, [autoOn, convId, autoTargetId, actionEscrow.funded]);
 
   const price = active?.priceLamports ?? 10_000_000;
   const minutes = active?.minutes ?? 30;
@@ -145,29 +179,27 @@ export function Chat({ market }: { market: Market }) {
             <div key={g.label}>
               <h4>{g.label}</h4>
               {g.items.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className="conv"
-                  aria-current={c.id === active?.id}
-                  onClick={() => {
-                    chat.selectConversation(c.id);
-                    setRailOpen(false);
-                  }}
-                >
-                  <span>{c.title}</span>
+                <div key={c.id} className="conv-wrap">
+                  <button
+                    type="button"
+                    className="conv"
+                    aria-current={c.id === active?.id}
+                    onClick={() => {
+                      chat.selectConversation(c.id);
+                      setRailOpen(false);
+                    }}
+                  >
+                    <span>{c.title}</span>
+                  </button>
                   <button
                     type="button"
                     className="conv-x"
                     aria-label={`Delete ${c.title}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      chat.deleteConversation(c.id);
-                    }}
+                    onClick={() => chat.deleteConversation(c.id)}
                   >
                     <CloseIcon size={12} />
                   </button>
-                </button>
+                </div>
               ))}
             </div>
           ))}
@@ -188,15 +220,23 @@ export function Chat({ market }: { market: Market }) {
               type="button"
               role="switch"
               className="switch"
-              aria-checked={Boolean(active?.autoApprove)}
+              aria-checked={autoOn}
               aria-labelledby="auto-label"
               disabled={!active}
-              onClick={() => active && chat.setSettings(active.id, { autoApprove: !active.autoApprove })}
+              onClick={() =>
+                active && chat.setSettings(active.id, { autoApprove: !active.autoApprove })
+              }
             >
               <i />
             </button>
           </div>
         </div>
+
+        {/* The thread head drops these on phones, so the rail is the mobile nav. */}
+        <nav className="rail-nav">
+          <Link to="/jobs">Jobs</Link>
+          <Link to="/provider">Provider</Link>
+        </nav>
 
         <div className="rail-wallet">
           <span>{owner ? shortKey(owner) : "not connected"}</span>
@@ -216,18 +256,22 @@ export function Chat({ market }: { market: Market }) {
               <MenuIcon />
             </button>
             <b>{active?.title ?? "New chat"}</b>
-            <span
-              style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--ink-2)" }}
-              title={tee.detail}
-            >
-              <i className={`dot ${tee.live ? "dot-live" : tee.live === false ? "dot-bad" : "dot-wait"}`} />
+            <span className="thread-tee" title={tee.detail}>
+              <i
+                className={`dot ${tee.live ? "dot-live" : tee.live === false ? "dot-bad" : "dot-wait"}`}
+              />
               {tee.label}
             </span>
           </div>
-          <nav className="thread-links">
-            <Link to="/jobs">Jobs</Link>
-            <Link to="/provider">Provider</Link>
-          </nav>
+
+          <div className="thread-right">
+            <nav className="thread-links">
+              <Link to="/jobs">Jobs</Link>
+              <Link to="/provider">Provider</Link>
+            </nav>
+            {/* The chat has no app bar, so the wallet control lives here. */}
+            <WalletChip owner={owner} lamports={lamports} />
+          </div>
         </div>
 
         <div className="scroll">
@@ -241,19 +285,16 @@ export function Chat({ market }: { market: Market }) {
                 </p>
                 <div className="examples">
                   {EXAMPLES.map((e) => (
-                    <button
-                      key={e}
-                      type="button"
-                      className="example"
-                      onClick={() => {
-                        setDraft(e);
-                        boxRef.current?.focus();
-                      }}
-                    >
+                    <button key={e} type="button" className="example" onClick={() => useExample(e)}>
                       {e}
                     </button>
                   ))}
                 </div>
+                {!owner ? (
+                  <p className="empty" style={{ padding: 0 }}>
+                    connect a wallet to send your first message
+                  </p>
+                ) : null}
               </div>
             ) : (
               history.map((m) => (
@@ -263,6 +304,7 @@ export function Chat({ market }: { market: Market }) {
                   now={now}
                   busy={chat.busy}
                   onDecide={(kind) => decide(m.id, kind)}
+                  onRetrySettle={() => active && chat.retrySettle(active.id, m.id)}
                 />
               ))
             )}
@@ -278,7 +320,7 @@ export function Chat({ market }: { market: Market }) {
               aria-label="Message"
               placeholder="Message the model privately…"
               rows={1}
-              onChange={(e) => setDraft(capBytes(e.target.value, PROMPT_MAX))}
+              onChange={(e) => setDraft(capBytes(e.target.value, DRAFT_MAX))}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -287,8 +329,8 @@ export function Chat({ market }: { market: Market }) {
               }}
             />
 
-            <div className={`meter${over ? " over" : ""}`}>
-              <i style={{ ["--p" as never]: Math.min(1, ctx / PROMPT_MAX) }} />
+            <div className={`meter${draftTooLong ? " over" : ""}`}>
+              <i style={{ ["--p" as never]: Math.min(1, draftBytes / DRAFT_MAX) }} />
             </div>
 
             <div className="composer-bar">
@@ -297,7 +339,6 @@ export function Chat({ market }: { market: Market }) {
                 label={model}
                 value={model}
                 options={MODELS}
-                disabled={!active && chat.convs.length > 0}
                 onChange={(v) => {
                   const conv = active ?? chat.startConversation();
                   chat.setSettings(conv.id, { model: v });
@@ -324,26 +365,24 @@ export function Chat({ market }: { market: Market }) {
                 }}
               />
               <span className="ctx">
-                context {ctx.toLocaleString()} / {PROMPT_MAX.toLocaleString()} bytes
+                {draftBytes.toLocaleString()} / {DRAFT_MAX.toLocaleString()} bytes
+                {historyTrimmed ? " · older turns trimmed" : ""}
               </span>
 
               <button
                 type="button"
                 className="send"
                 aria-label="Send"
-                disabled={!draft.trim() || chat.busy || over}
+                disabled={!draft.trim() || chat.busy || draftTooLong}
                 onClick={submit}
               >
                 {chat.busy ? <i className="spin" /> : <SendIcon />}
               </button>
             </div>
 
-            {byteLen(draft) >= PROMPT_MAX ? (
-              <p className="notice">message is at the 4,096-byte cap</p>
-            ) : null}
-            {over ? (
+            {draftTooLong ? (
               <p className="notice">
-                this conversation no longer fits in one job; start a new chat
+                this message is too long · trim it to {DRAFT_MAX.toLocaleString()} bytes
               </p>
             ) : null}
           </div>

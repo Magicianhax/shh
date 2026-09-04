@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PublicKey } from "@solana/web3.js";
 import {
   createJob,
+  escrowPda,
   finishJob,
   jobPrivatePda,
   permissionPda,
@@ -15,7 +16,7 @@ import type { ChatMsg, Conversation, Store } from "../lib/chat";
 import {
   buildPrompt,
   freshSteps,
-  isLive,
+  isPollable,
   loadStore,
   newConversation,
   saveStore,
@@ -25,8 +26,20 @@ import { errText, num, statusKey } from "../lib/format";
 import { recordStep } from "../lib/latency";
 
 const POLL_MS = 2000;
+/** How long to wait for a scheduled settlement before settling by hand. */
+const SETTLE_WAIT_MS = 60_000;
+const SETTLE_POLL_MS = 3000;
+
+let nonceCounter = 0n;
+/** Millisecond-unique, so two messages sent in the same tick get different jobs. */
+const nextNonce = (): bigint => {
+  nonceCounter = (nonceCounter + 1n) % 1000n;
+  return BigInt(Date.now()) * 1000n + nonceCounter;
+};
 
 const uid = () => `m${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
  * The chat, and the on-chain job behind every turn.
@@ -34,12 +47,14 @@ const uid = () => `m${Date.now().toString(36)}${Math.random().toString(36).slice
  * One user message becomes one job: `createJob` on devnet, then `publishJob`,
  * which delegates the pair to the TEE validator, opens the rollup permissions
  * and streams the prompt in. The pending assistant message then polls the
- * rollup copy of the job every two seconds until a provider claims it, answers
- * it, and the output can be read back through `readPrivate`.
+ * rollup copy of the job until a provider claims it, answers it, and the output
+ * can be read back through `readPrivate`.
  *
- * Step timings are measured, not simulated: `createJob` resolving, the router
- * reporting delegation, and the rollup permission account appearing are three
- * observable events, and the fourth closes when `publishJob` returns.
+ * Settlement is a two-phase machine on purpose. `finishJob` is the only step
+ * that can be retried safely as a whole; once it lands, the decision is on
+ * chain and the message stays in "settling" until the escrow actually reads
+ * paid. Polling never rewinds a message out of "settling", and one flag records
+ * that a decision was attempted so a failure can never loop the wallet.
  */
 export function useChat(market: Market) {
   const { base, er, router, validator, wallet, connection } = market;
@@ -47,7 +62,10 @@ export function useChat(market: Market) {
 
   const [store, setStore] = useState<Store>(() => loadStore());
   const [busy, setBusy] = useState(false);
-  const watchers = useRef<Record<string, number>>({});
+  const publishWatcher = useRef(0);
+  const sending = useRef(false);
+  const storeRef = useRef(store);
+  storeRef.current = store;
 
   useEffect(() => {
     saveStore(store);
@@ -98,9 +116,16 @@ export function useChat(market: Market) {
 
   // ---- sending ------------------------------------------------------------
 
+  const stopPublishWatcher = useCallback(() => {
+    if (publishWatcher.current) window.clearInterval(publishWatcher.current);
+    publishWatcher.current = 0;
+  }, []);
+
   const send = useCallback(
     async (text: string) => {
       if (!base || !er || !validator || !owner || !text.trim()) return;
+      if (sending.current) return;
+      sending.current = true;
 
       let conv = active;
       if (!conv) conv = startConversation();
@@ -139,17 +164,14 @@ export function useChat(market: Market) {
         if (i >= 2) recordStep(ms);
         patchMsg(convId, botId, (m) => ({
           ...m,
-          steps: (m.steps ?? freshSteps()).map((s, k) =>
-            k === i ? { ...s, done: true, ms } : s,
-          ),
+          steps: (m.steps ?? freshSteps()).map((s, k) => (k === i ? { ...s, done: true, ms } : s)),
         }));
       };
 
       let stage = 0;
-      let watcher = 0;
 
       try {
-        const nonce = BigInt(Date.now());
+        const nonce = nextNonce();
         const deadlineUnix = Math.floor(Date.now() / 1000) + conv.minutes * 60;
         const prompt = buildPrompt(history, text);
 
@@ -164,15 +186,13 @@ export function useChat(market: Market) {
         closeStep(0);
         stage = 1;
 
-        patchMsg(convId, botId, (m) => ({
-          ...m,
-          job: job.toBase58(),
-          deadlineUnix,
-        }));
+        patchMsg(convId, botId, (m) => ({ ...m, job: job.toBase58(), deadlineUnix }));
 
-        // Watch the two phases inside `publishJob` that can be observed.
+        // Watch the two phases inside `publishJob` that can be observed. The
+        // handle lives in a ref so unmounting clears it.
         let seenDelegated = false;
-        watcher = window.setInterval(() => {
+        stopPublishWatcher();
+        publishWatcher.current = window.setInterval(() => {
           void (async () => {
             try {
               if (!seenDelegated) {
@@ -191,8 +211,7 @@ export function useChat(market: Market) {
               if (perm) {
                 closeStep(2);
                 stage = 3;
-                window.clearInterval(watcher);
-                watcher = 0;
+                stopPublishWatcher();
               }
             } catch {
               /* transient RPC hiccups must not fail the publish */
@@ -208,7 +227,7 @@ export function useChat(market: Market) {
           validator,
           new TextEncoder().encode(prompt),
         );
-        if (watcher) window.clearInterval(watcher);
+        stopPublishWatcher();
 
         // Close whatever the watcher did not observe before the call returned.
         patchMsg(convId, botId, (m) => {
@@ -224,7 +243,7 @@ export function useChat(market: Market) {
           };
         });
       } catch (e) {
-        if (watcher) window.clearInterval(watcher);
+        stopPublishWatcher();
         patchMsg(convId, botId, (m) => ({
           ...m,
           state: "failed",
@@ -234,66 +253,141 @@ export function useChat(market: Market) {
           ),
         }));
       } finally {
+        sending.current = false;
         setBusy(false);
       }
     },
-    [active, base, er, owner, patchConv, patchMsg, router, startConversation, validator],
+    [active, base, er, owner, patchConv, patchMsg, router, startConversation, stopPublishWatcher, validator],
   );
 
   // ---- settlement ---------------------------------------------------------
 
-  const decide = useCallback(
-    async (convId: string, msgId: string, kind: "approve" | "reject", funded: boolean) => {
-      const conv = store.convs.find((c) => c.id === convId);
-      const msg = conv?.messages.find((m) => m.id === msgId);
-      if (!base || !er || !owner || !msg?.job) return;
-      const job = new PublicKey(msg.job);
-
-      patchMsg(convId, msgId, (m) => ({ ...m, state: "settling", error: null }));
-
-      try {
-        await finishJob(er, owner, job, kind, funded);
-
-        if (!funded) {
-          // No scheduled action could pay, so settle on the base layer once the
-          // commit has brought the job back.
-          await waitForUndelegation(connection, job);
-          const sig = await settleDirect(base, owner, job);
-          patchMsg(convId, msgId, (m) => ({
-            ...m,
-            state: kind === "approve" ? "settled" : "rejected",
-            sig,
-          }));
-          return;
-        }
-
+  /**
+   * Phase two, and only phase two. The decision is already on chain, so this
+   * never rewinds the message; a failure here surfaces inline with a retry that
+   * re-runs exactly this half.
+   *
+   * A scheduled Magic Action may pay the escrow on its own, so wait for that
+   * before spending a signature: poll `Escrow.paid` for up to a minute, call
+   * `settleDirect` once if it is still unpaid, then check again.
+   */
+  const settlePhase = useCallback(
+    async (convId: string, msgId: string, jobKey: string, kind: "approve" | "reject") => {
+      if (!base || !owner) return;
+      const job = new PublicKey(jobKey);
+      const escrow = escrowPda(job);
+      const done = () =>
         patchMsg(convId, msgId, (m) => ({
           ...m,
           state: kind === "approve" ? "settled" : "rejected",
+          settleError: null,
+        }));
+
+      const paid = async (): Promise<boolean> => {
+        const e: any = await base.account.escrow.fetchNullable(escrow);
+        // A closed escrow means the job was settled and cleaned up.
+        return e === null ? true : Boolean(e.paid);
+      };
+
+      try {
+        patchMsg(convId, msgId, (m) => ({ ...m, settleError: null }));
+        await waitForUndelegation(connection, job);
+
+        const deadline = Date.now() + SETTLE_WAIT_MS;
+        while (Date.now() < deadline) {
+          if (await paid()) {
+            done();
+            return;
+          }
+          await sleep(SETTLE_POLL_MS);
+        }
+
+        const sig = await settleDirect(base, owner, job);
+        patchMsg(convId, msgId, (m) => ({ ...m, sig }));
+        if (await paid()) {
+          done();
+          return;
+        }
+        patchMsg(convId, msgId, (m) => ({
+          ...m,
+          settleError: "settled on chain but the escrow still reads unpaid",
         }));
       } catch (e) {
-        patchMsg(convId, msgId, (m) => ({ ...m, state: "submitted", error: errText(e) }));
+        patchMsg(convId, msgId, (m) => ({ ...m, settleError: errText(e) }));
       }
     },
-    [base, connection, er, owner, patchMsg, store.convs],
+    [base, connection, owner, patchMsg],
+  );
+
+  /** Retry the settle half only. The decision itself is never sent twice. */
+  const retrySettle = useCallback(
+    (convId: string, msgId: string) => {
+      const msg = storeRef.current.convs
+        .find((c) => c.id === convId)
+        ?.messages.find((m) => m.id === msgId);
+      if (!msg?.job || !msg.decision) return;
+      void settlePhase(convId, msgId, msg.job, msg.decision);
+    },
+    [settlePhase],
+  );
+
+  /**
+   * Phase one: send the decision. `decisionAttempted` is set before the call and
+   * never cleared, so auto-approve cannot fire again whatever happens next.
+   */
+  const decide = useCallback(
+    async (convId: string, msgId: string, kind: "approve" | "reject", funded: boolean) => {
+      const msg = storeRef.current.convs
+        .find((c) => c.id === convId)
+        ?.messages.find((m) => m.id === msgId);
+      if (!er || !owner || !msg?.job) return;
+      if (msg.state === "settling" || msg.state === "settled" || msg.state === "rejected") return;
+
+      const job = new PublicKey(msg.job);
+      patchMsg(convId, msgId, (m) => ({
+        ...m,
+        state: "settling",
+        decision: kind,
+        decisionAttempted: true,
+        error: null,
+        settleError: null,
+      }));
+
+      try {
+        await finishJob(er, owner, job, kind, funded);
+      } catch (e) {
+        // The decision never reached the rollup. Park it in its own state with a
+        // manual retry rather than back in "submitted", where auto-approve or a
+        // stray poll could fire it again.
+        patchMsg(convId, msgId, (m) => ({
+          ...m,
+          state: "decision_failed",
+          error: errText(e),
+        }));
+        return;
+      }
+
+      await settlePhase(convId, msgId, msg.job, kind);
+    },
+    [er, owner, patchMsg, settlePhase],
   );
 
   // ---- polling ------------------------------------------------------------
 
-  const liveKeys = active
+  const pollKeys = active
     ? active.messages
-        .filter((m) => m.role === "assistant" && m.job && isLive(m.state) && m.state !== "publishing")
+        .filter((m) => m.role === "assistant" && isPollable(m))
         .map((m) => `${m.id}:${m.job}`)
         .join(",")
     : "";
 
   useEffect(() => {
-    if (!er || !base || !active || !liveKeys) return;
+    if (!er || !active || !pollKeys) return;
     const convId = active.id;
     let stopped = false;
 
     const tick = async () => {
-      for (const entry of liveKeys.split(",")) {
+      for (const entry of pollKeys.split(",")) {
         const [msgId, jobKey] = entry.split(":");
         if (!jobKey) continue;
         const job = new PublicKey(jobKey);
@@ -309,7 +403,8 @@ export function useChat(market: Market) {
 
           if (status === "claimed") {
             patchMsg(convId, msgId, (m) =>
-              m.state === "claimed" && m.provider === provider
+              // Never rewind a message the user has already decided on.
+              !isPollable(m) || (m.state === "claimed" && m.provider === provider)
                 ? m
                 : { ...m, state: "claimed", provider },
             );
@@ -322,7 +417,7 @@ export function useChat(market: Market) {
                 ? (num(acct.submittedAt) - num(acct.createdAt)) * 1000
                 : null;
             patchMsg(convId, msgId, (m) =>
-              m.state === "submitted" && m.text === text
+              !isPollable(m) || (m.state === "submitted" && m.text === text)
                 ? m
                 : { ...m, state: "submitted", provider, text, answeredMs },
             );
@@ -339,14 +434,9 @@ export function useChat(market: Market) {
       stopped = true;
       window.clearInterval(id);
     };
-  }, [er, base, active, liveKeys, patchMsg]);
+  }, [er, active, pollKeys, patchMsg]);
 
-  useEffect(() => {
-    const timers = watchers.current;
-    return () => {
-      for (const id of Object.values(timers)) window.clearInterval(id);
-    };
-  }, []);
+  useEffect(() => stopPublishWatcher, [stopPublishWatcher]);
 
   return {
     convs: store.convs,
@@ -358,7 +448,7 @@ export function useChat(market: Market) {
     setSettings,
     send,
     decide,
-    /** Exposed for the empty state's example prompts. */
+    retrySettle,
     ready: Boolean(base && er && validator && owner),
   };
 }

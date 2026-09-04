@@ -277,7 +277,8 @@ button {
   .path,
   .pulse,
   .dots i,
-  .spin {
+  .spin,
+  .toast {
     animation: none;
   }
 
@@ -953,11 +954,27 @@ textarea:focus {
   padding-top: 8px;
 }
 
+.conv-wrap {
+  display: flex;
+  align-items: center;
+  border-radius: 12px;
+  transition: background-color 120ms var(--ease);
+}
+
+.conv-wrap:hover {
+  background: var(--s2);
+}
+
+.conv-wrap:has(.conv[aria-current="true"]) {
+  background: var(--s4);
+}
+
 .conv {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
+  min-width: 0;
   min-height: 44px;
   padding: 0 12px;
   border: 0;
@@ -977,34 +994,38 @@ textarea:focus {
   white-space: nowrap;
 }
 
-.conv:hover {
-  background: var(--s2);
-}
-
 .conv[aria-current="true"] {
-  background: var(--s4);
   color: var(--ink);
   font-weight: 500;
 }
 
 .conv-x {
-  display: none;
+  display: grid;
   place-items: center;
   flex: none;
   width: 28px;
   height: 28px;
-  margin-right: -6px;
+  margin-right: 6px;
   border: 0;
   border-radius: 999px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms var(--ease);
 }
 
-.conv:hover .conv-x,
-.conv[aria-current="true"] .conv-x,
+.conv-wrap:hover .conv-x,
+.conv-wrap:has(.conv[aria-current="true"]) .conv-x,
 .conv-x:focus-visible {
-  display: grid;
+  opacity: 1;
+}
+
+/* A touch device has no hover, so the affordance is always there. */
+@media (hover: none), (pointer: coarse) {
+  .conv-x {
+    opacity: 1;
+  }
 }
 
 .rail-card {
@@ -1104,12 +1125,49 @@ textarea:focus {
   white-space: nowrap;
 }
 
+.thread-right {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+/* Styled here, not inline, so the phone breakpoint can hide it. */
+.thread-tee {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
 .thread-links {
   display: flex;
   align-items: center;
   gap: 22px;
   font-size: 14px;
   color: var(--ink-2);
+}
+
+.rail-nav {
+  display: flex;
+  gap: 6px;
+  padding: 0 6px;
+}
+
+.rail-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.rail-nav a:hover {
+  background: var(--s2);
+  color: var(--ink);
 }
 
 .scroll {
@@ -1314,6 +1372,17 @@ textarea:focus {
   top: 50%;
   height: 44px;
   transform: translateY(-50%);
+}
+
+/* These two are narrower than 44px as drawn, so the box also grows sideways. */
+.switch::before {
+  left: -5px;
+  right: -5px;
+}
+
+.conv-x::before {
+  left: -8px;
+  right: -8px;
 }
 
 .pill {
@@ -1968,9 +2037,13 @@ textarea:focus {
     padding: 12px 16px;
   }
 
+  .thread-tee,
   .thread-links {
-    gap: 14px;
-    font-size: 13px;
+    display: none;
+  }
+
+  .thread-right {
+    gap: 8px;
   }
 
   .scroll {

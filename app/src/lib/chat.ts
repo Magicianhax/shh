@@ -1,11 +1,14 @@
 import { PROMPT_MAX } from "@inference-market/client";
-import { byteLen } from "./format";
+import { byteLen, capBytes } from "./format";
 
 export type ChatState =
   | "publishing"
   | "open"
   | "claimed"
   | "submitted"
+  /** `finishJob` threw. The decision never reached the rollup; retry is manual. */
+  | "decision_failed"
+  /** `finishJob` landed. The money is moving; this state is never left by polling. */
   | "settling"
   | "settled"
   | "rejected"
@@ -29,6 +32,15 @@ export type ChatMsg = {
   sig?: string | null;
   answeredMs?: number | null;
   deadlineUnix?: number;
+  /**
+   * Set before the first approve or reject and never cleared. Auto-approve is
+   * gated on this, so a failed decision can never become a signature loop.
+   */
+  decisionAttempted?: boolean;
+  /** Which decision was sent, so a settle retry knows what it is finishing. */
+  decision?: "approve" | "reject";
+  /** A settle-phase failure, shown inline with a retry that skips `finishJob`. */
+  settleError?: string | null;
 };
 
 export type Conversation = {
@@ -49,6 +61,16 @@ export const freshSteps = (): Step[] =>
 
 export const PREAMBLE =
   "You are answering inside a private inference marketplace. Reply directly.";
+
+/** Bytes the preamble and its blank line always cost, before any turn. */
+export const PREAMBLE_BYTES = byteLen(`${PREAMBLE}\n\n`);
+
+/**
+ * The largest draft that can still be published, once the preamble and the
+ * "User: " marker are paid for. Shown to the user as the cap, so the counter
+ * they watch is the one that actually stops them.
+ */
+export const DRAFT_MAX = PROMPT_MAX - PREAMBLE_BYTES - byteLen("User: ") - 2;
 
 const STORE_KEY = "im.chat.v1";
 
@@ -101,36 +123,68 @@ export const titleFrom = (text: string): string => {
 
 const turn = (m: ChatMsg) => `${m.role === "user" ? "User" : "Assistant"}: ${m.text}`;
 
+/** Re-exported so the composer and the prompt builder share one definition. */
+export { capBytes };
+
 /**
  * The prompt for one turn: a short preamble, then as much of this conversation
  * as fits in `PROMPT_MAX` bytes, dropping the oldest turns first so the newest
  * context always survives.
+ *
+ * The result is guaranteed to fit. When even the newest turn alone is too long,
+ * that turn is truncated rather than returned oversized, because the caller
+ * hands this straight to `publishJob`, which rejects anything over the cap.
  */
 export function buildPrompt(history: ChatMsg[], next: string): string {
   const usable = history.filter((m) => m.text.trim().length > 0);
   const head = `${PREAMBLE}\n\n`;
-  const tail = `User: ${next.trim()}`;
 
+  const compose = (from: number, tailText: string) =>
+    head +
+    usable.slice(from).map(turn).join("\n\n") +
+    (from < usable.length ? "\n\n" : "") +
+    `User: ${tailText}`;
+
+  const tail = next.trim();
   let start = 0;
-  const compose = (from: number) =>
-    head + usable.slice(from).map(turn).join("\n\n") + (from < usable.length ? "\n\n" : "") + tail;
+  let out = compose(start, tail);
 
-  let out = compose(start);
   while (byteLen(out) > PROMPT_MAX && start < usable.length) {
     start += 1;
-    out = compose(start);
+    out = compose(start, tail);
   }
 
-  // A single turn that still does not fit is cut to the byte budget by the
-  // composer's own cap, so this only guards the degenerate case.
+  if (byteLen(out) > PROMPT_MAX) {
+    // No history left to drop, so the newest turn itself is over budget.
+    const room = PROMPT_MAX - byteLen(compose(usable.length, ""));
+    out = compose(usable.length, capBytes(tail, Math.max(0, room)));
+  }
+
   return out;
 }
 
 export const contextBytes = (history: ChatMsg[], draft: string): number =>
   byteLen(buildPrompt(history, draft));
 
+/** In flight from the user's point of view: something is still happening. */
 export const isLive = (state?: ChatState): boolean =>
   state === "publishing" || state === "open" || state === "claimed" || state === "settling";
+
+/**
+ * Whether the rollup should still be polled for this message.
+ *
+ * Deliberately narrow. A message being settled is NOT polled: a tick landing
+ * mid-decision used to patch it back to "submitted", which re-showed
+ * Approve/Reject and let the auto-approve effect fire a second signature.
+ * "submitted" is polled only while the output has not arrived yet.
+ */
+export const isPollable = (m: ChatMsg): boolean =>
+  Boolean(
+    m.job &&
+      (m.state === "open" ||
+        m.state === "claimed" ||
+        (m.state === "submitted" && m.text.length === 0)),
+  );
 
 /** Groups conversations the way the rail shows them. */
 export function groupByDay(convs: Conversation[]): { label: string; items: Conversation[] }[] {

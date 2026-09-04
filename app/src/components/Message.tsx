@@ -9,9 +9,10 @@ type Props = {
   now: number;
   busy: boolean;
   onDecide: (kind: "approve" | "reject") => void;
+  onRetrySettle: () => void;
 };
 
-/** "sealed ✓ · delegated ✓ 41 ms · permissions ✓ · prompt ✓ · waiting…" */
+/** "sealing ✓ · delegating ✓ 41 ms · permissions ✓ · prompt ✓ · waiting…" */
 function stepLine(msg: ChatMsg): string {
   const steps = msg.steps ?? [];
   const parts = steps.map((s) => {
@@ -23,11 +24,10 @@ function stepLine(msg: ChatMsg): string {
   if (msg.state === "claimed") {
     parts.push(`${msg.provider ? shortKey(msg.provider, 4) : "a provider"} is answering…`);
   }
-  if (msg.state === "settling") parts.push("settling…");
   return parts.join(" · ");
 }
 
-export function Message({ msg, now, busy, onDecide }: Props) {
+export function Message({ msg, now, busy, onDecide, onRetrySettle }: Props) {
   if (msg.role === "user") {
     return (
       <div className="msg-user">
@@ -37,11 +37,9 @@ export function Message({ msg, now, busy, onDecide }: Props) {
   }
 
   const price = (msg.priceLamports ?? 0) / LAMPORTS;
-  const waiting =
-    msg.state === "publishing" ||
-    msg.state === "open" ||
-    msg.state === "claimed" ||
-    msg.state === "settling";
+  const publishing =
+    msg.state === "publishing" || msg.state === "open" || msg.state === "claimed";
+  const settling = msg.state === "settling";
 
   const openAt = msg.deadlineUnix ? (msg.deadlineUnix + AUTO_APPROVE_SECS) * 1000 : null;
   const openInMin = openAt ? Math.max(0, Math.round((openAt - now) / 60000)) : null;
@@ -55,7 +53,7 @@ export function Message({ msg, now, busy, onDecide }: Props) {
       <div className="msg-body">
         {msg.text ? <div className="msg-text">{msg.text}</div> : null}
 
-        {waiting ? (
+        {publishing ? (
           <>
             <span className="dots" aria-label="Working">
               <i />
@@ -64,6 +62,16 @@ export function Message({ msg, now, busy, onDecide }: Props) {
             </span>
             <span className="steps-line">{stepLine(msg)}</span>
           </>
+        ) : null}
+
+        {settling ? (
+          <div className="msg-meta">
+            <span className="ok">
+              <i className="spin" style={{ color: "var(--acc)" }} />
+              {msg.decision === "reject" ? "refunding…" : "settling…"}
+            </span>
+            {msg.sig ? <span className="mono">{shortKey(msg.sig, 4)}</span> : null}
+          </div>
         ) : null}
 
         {msg.state === "submitted" ? (
@@ -93,6 +101,22 @@ export function Message({ msg, now, busy, onDecide }: Props) {
           </div>
         ) : null}
 
+        {msg.state === "decision_failed" ? (
+          <>
+            <p className="notice">{msg.error}</p>
+            <div className="msg-actions">
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={() => onDecide(msg.decision ?? "approve")}
+              >
+                Try again
+              </button>
+            </div>
+          </>
+        ) : null}
+
         {msg.state === "settled" || msg.state === "rejected" ? (
           <div className="msg-meta">
             <span className="ok">
@@ -109,9 +133,18 @@ export function Message({ msg, now, busy, onDecide }: Props) {
           </div>
         ) : null}
 
-        {msg.state === "failed" || msg.error ? (
-          <p className="notice">{msg.error}</p>
+        {msg.settleError ? (
+          <>
+            <p className="notice">{msg.settleError}</p>
+            <div className="msg-actions">
+              <button type="button" className="btn" onClick={onRetrySettle}>
+                Settle now
+              </button>
+            </div>
+          </>
         ) : null}
+
+        {msg.state === "failed" && msg.error ? <p className="notice">{msg.error}</p> : null}
       </div>
     </div>
   );
