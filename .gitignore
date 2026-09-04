@@ -8,3 +8,5 @@ test-ledger/
 app/dist/
 .superpowers/
 .playwright-mcp/
+design/canvas/*.html
+!design/canvas/*.dc.html
