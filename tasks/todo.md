@@ -10,7 +10,7 @@ Spec: docs/superpowers/specs/2026-09-04-private-inference-network-design.md
 - [x] Task 4 delegate instructions
 - [x] Task 5 ER instructions (permissions, prompt, claim, output)
 - [x] Task 6 terminal instructions + settle + close_job
-- [ ] Task 7 devnet deploy
+- [x] Task 7 devnet deploy
 - [ ] Task 8 TS client library
 - [ ] Task 9 devnet e2e test
 - [ ] Task 10 provider worker
@@ -18,3 +18,4 @@ Spec: docs/superpowers/specs/2026-09-04-private-inference-network-design.md
 - [ ] Task 12 README + demo script
 
 ## Review notes
+- Task 7 (2026-09-04): deployed to devnet via https://rpc.magicblock.app/devnet. Program ID HWeUskL1BSdZid4xsbSMBeZ4YH4FsTiYpdXDFZKzyBoe, deploy sig 3V2KAtzTXoBcAKCMKTCYCJbeSA2FYS4NG6uTv88uSHnrm5nPjaeY4yU8LvRXu2mdvgekErdUD5JhRGxXrQNySaRo, slot 493040344, authority 5GD6aDwN9DP12QjMy14X9zaw8Zun4d64cnKKK4anhkjV. Public api.devnet RPC throttled the first attempt ("Max retries exceeded"); use `solana program deploy ... -u https://rpc.magicblock.app/devnet --use-rpc --max-sign-attempts 60` and `solana program close --buffers -u https://api.devnet.solana.com` to reclaim a failed buffer.
