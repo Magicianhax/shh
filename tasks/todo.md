@@ -3,8 +3,8 @@
 Plan: docs/superpowers/plans/2026-09-04-private-inference-network.md
 Spec: docs/superpowers/specs/2026-09-04-private-inference-network-design.md
 
-- [ ] Task 0 toolchain + repo init (repo init done; WSL/Rust/Solana/Anchor pending)
-- [ ] Task 1 Anchor workspace + state
+- [x] Task 0 toolchain + repo init
+- [x] Task 1 Anchor workspace + state
 - [ ] Task 2 pure logic + cargo tests
 - [ ] Task 3 register_provider + create_job
 - [ ] Task 4 delegate instructions
