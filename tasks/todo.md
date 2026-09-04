@@ -7,7 +7,7 @@ Spec: docs/superpowers/specs/2026-09-04-private-inference-network-design.md
 - [x] Task 1 Anchor workspace + state
 - [x] Task 2 pure logic + cargo tests
 - [x] Task 3 register_provider + create_job
-- [ ] Task 4 delegate instructions
+- [x] Task 4 delegate instructions
 - [ ] Task 5 ER instructions (permissions, prompt, claim, output)
 - [ ] Task 6 terminal instructions + settle + close_job
 - [ ] Task 7 devnet deploy
