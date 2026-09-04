@@ -1,107 +1,94 @@
-/** Authored line icons, one stroke weight, so no emoji stands in for an icon. */
+/** Line icons drawn to the artboards' 1.8 stroke, so no emoji stands in. */
 
-type Props = { size?: number };
+type P = { size?: number };
 
-const base = (size: number) => ({
+const s = (size: number, stroke = 1.8) => ({
   width: size,
   height: size,
-  viewBox: "0 0 16 16",
+  viewBox: "0 0 24 24",
   fill: "none",
   stroke: "currentColor",
-  strokeWidth: 1.4,
+  strokeWidth: stroke,
   strokeLinecap: "round" as const,
   strokeLinejoin: "round" as const,
   "aria-hidden": true,
 });
 
-export const CopyIcon = ({ size = 13 }: Props) => (
-  <svg {...base(size)}>
-    <rect x="5.5" y="5.5" width="8" height="8" rx="1.6" />
-    <path d="M10.5 3.2A1.7 1.7 0 0 0 8.9 2H4.2A2.2 2.2 0 0 0 2 4.2v4.7c0 .74.47 1.37 1.2 1.6" />
+/** The product mark: a rounded square with a plus, from the artboards. */
+export const Mark = ({ size = 26 }: P) => (
+  <svg width={size} height={size} viewBox="0 0 26 26" fill="none" aria-hidden="true">
+    <rect x="2" y="2" width="22" height="22" rx="6" stroke="currentColor" strokeWidth="1.8" />
+    <path d="M8 13h10M13 8v10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
   </svg>
 );
 
-export const CheckIcon = ({ size = 13 }: Props) => (
-  <svg {...base(size)}>
-    <path d="M3 8.4 6.2 11.6 13 4.8" />
+export const LockIcon = ({ size = 18 }: P) => (
+  <svg {...s(size)}>
+    <rect x="4" y="10" width="16" height="11" rx="2.5" />
+    <path d="M8 10V7a4 4 0 0 1 8 0v3" />
   </svg>
 );
 
-export const LinkIcon = ({ size = 13 }: Props) => (
-  <svg {...base(size)}>
-    <path d="M9 3h4v4" />
-    <path d="m13 3-5.6 5.6" />
-    <path d="M12.2 9.8V12A1.8 1.8 0 0 1 10.4 13.8H4A1.8 1.8 0 0 1 2.2 12V5.6A1.8 1.8 0 0 1 4 3.8h2.2" />
+export const CheckIcon = ({ size = 16 }: P) => (
+  <svg {...s(size, 2)}>
+    <path d="M20 6 9 17l-5-5" />
   </svg>
 );
 
-export const RefreshIcon = ({ size = 13 }: Props) => (
-  <svg {...base(size)}>
-    <path d="M13.2 7A5.3 5.3 0 0 0 3.6 4.6" />
-    <path d="M2.8 9A5.3 5.3 0 0 0 12.4 11.4" />
-    <path d="M3.2 1.9v2.9h2.9M12.8 14.1v-2.9H9.9" />
+export const ArrowIcon = ({ size = 18 }: P) => (
+  <svg {...s(size, 2)}>
+    <path d="M5 12h14M13 6l6 6-6 6" />
   </svg>
 );
 
-export const CloseIcon = ({ size = 14 }: Props) => (
-  <svg {...base(size)}>
-    <path d="m3.6 3.6 8.8 8.8m0-8.8-8.8 8.8" />
+export const SendIcon = ({ size = 18 }: P) => (
+  <svg {...s(size, 2.2)}>
+    <path d="M12 19V5M5 12l7-7 7 7" />
   </svg>
 );
 
-export const LockIcon = ({ size = 13 }: Props) => (
-  <svg {...base(size)}>
-    <rect x="3" y="7" width="10" height="6.6" rx="1.8" />
-    <path d="M5.4 7V5.1a2.6 2.6 0 0 1 5.2 0V7" />
+export const PlusIcon = ({ size = 16 }: P) => (
+  <svg {...s(size, 2)}>
+    <path d="M12 5v14M5 12h14" />
   </svg>
 );
 
-export const UnlockIcon = ({ size = 13 }: Props) => (
-  <svg {...base(size)}>
-    <rect x="3" y="7" width="10" height="6.6" rx="1.8" />
-    <path d="M5.4 7V5.1a2.6 2.6 0 0 1 5.05-.85" />
+export const CloseIcon = ({ size = 14 }: P) => (
+  <svg {...s(size, 2)}>
+    <path d="m5 5 14 14M19 5 5 19" />
   </svg>
 );
 
-export const PlusIcon = ({ size = 13 }: Props) => (
-  <svg {...base(size)}>
-    <path d="M8 3.6v8.8M3.6 8h8.8" />
+export const MenuIcon = ({ size = 20 }: P) => (
+  <svg {...s(size, 2)}>
+    <path d="M4 7h16M4 12h16M4 17h16" />
   </svg>
 );
 
-export const MinusIcon = ({ size = 13 }: Props) => (
-  <svg {...base(size)}>
-    <path d="M3.6 8h8.8" />
+export const UserIcon = ({ size = 26 }: P) => (
+  <svg {...s(size)}>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" />
   </svg>
 );
 
-export const CoinIcon = ({ size = 18 }: Props) => (
-  <svg {...base(size)}>
-    <ellipse cx="8" cy="4.4" rx="5.2" ry="2.2" />
-    <path d="M2.8 4.4v7.2c0 1.2 2.33 2.2 5.2 2.2s5.2-1 5.2-2.2V4.4" />
-    <path d="M2.8 8c0 1.22 2.33 2.2 5.2 2.2s5.2-.98 5.2-2.2" />
+export const ServerIcon = ({ size = 26 }: P) => (
+  <svg {...s(size)}>
+    <rect x="3" y="5" width="18" height="14" rx="3" />
+    <path d="M7 10h4M7 14h10" />
   </svg>
 );
 
-export const BoltIcon = ({ size = 18 }: Props) => (
-  <svg {...base(size)}>
-    <path d="M8.9 1.6 3.4 9.1h4l-.3 5.3 5.5-7.5h-4z" />
+export const GlobeIcon = ({ size = 18 }: P) => (
+  <svg {...s(size)}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
   </svg>
 );
 
-/**
- * Three rising bars: a job entering the rollup and coming out settled. The only
- * mark on the page, so it carries the accent.
- */
-export const Wordmark = ({ size = 28 }: Props) => (
-  <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-    <rect width="32" height="32" rx="9" fill="var(--accent)" />
-    <path
-      d="M10 21V11m6 10V11m6 10V15"
-      fill="none"
-      stroke="#fff"
-      strokeWidth="2.6"
-      strokeLinecap="round"
-    />
+export const CopyIcon = ({ size = 14 }: P) => (
+  <svg {...s(size, 1.6)}>
+    <rect x="9" y="9" width="11" height="11" rx="2" />
+    <path d="M15 5.5A1.9 1.9 0 0 0 13.2 4H6a2 2 0 0 0-2 2v7.2A1.9 1.9 0 0 0 5.5 15" />
   </svg>
 );

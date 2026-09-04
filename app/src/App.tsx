@@ -1,35 +1,31 @@
-import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { Hero } from "./components/Hero";
-import { TopBar } from "./components/TopBar";
-import type { Page } from "./components/TopBar";
-import { useBalance } from "./hooks/useBalance";
+import { AppNav } from "./components/AppNav";
 import { useMarket } from "./hooks/useMarket";
+import { Chat } from "./pages/Chat";
+import { Jobs } from "./pages/Jobs";
+import { Landing } from "./pages/Landing";
 import { Provider } from "./pages/Provider";
-import { Requester } from "./pages/Requester";
-import { pageSwap } from "./motion";
+import { useRoute } from "./router";
 
 export default function App() {
-  const [page, setPage] = useState<Page>("requester");
+  const route = useRoute();
   const market = useMarket();
-  const connected = Boolean(market.wallet.publicKey);
-  const lamports = useBalance(market.connection, market.wallet.publicKey ?? null);
+
+  if (route === "/") return <Landing />;
+
+  // The chat owns its whole viewport, rail included, so it carries no app bar.
+  if (route === "/chat") return <Chat market={market} />;
 
   return (
     <>
-      <TopBar page={page} onPage={setPage} lamports={lamports} />
-
-      {/* The landing state, until a wallet connects. */}
-      <AnimatePresence initial={false}>{!connected ? <Hero key="hero" /> : null}</AnimatePresence>
-
+      <AppNav market={market} route={route} />
       {market.teeError ? (
         <div className="page" style={{ paddingBottom: 0 }}>
-          <p className="note note-warn">
-            The TEE rollup session could not be opened: {market.teeError}{" "}
+          <p className="notice">
+            rollup session not open: {market.teeError}{" "}
             <button
               type="button"
               className="btn btn-sm"
-              style={{ marginLeft: 8 }}
+              style={{ marginLeft: 8, minHeight: 36 }}
               onClick={market.reconnectTee}
             >
               Retry
@@ -37,18 +33,7 @@ export default function App() {
           </p>
         </div>
       ) : null}
-
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.main
-          key={page}
-          variants={pageSwap}
-          initial="hidden"
-          animate="show"
-          exit="exit"
-        >
-          {page === "requester" ? <Requester market={market} /> : <Provider market={market} />}
-        </motion.main>
-      </AnimatePresence>
+      {route === "/jobs" ? <Jobs market={market} /> : <Provider market={market} />}
     </>
   );
 }

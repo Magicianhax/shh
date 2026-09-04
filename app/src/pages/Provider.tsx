@@ -1,65 +1,49 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import {
-  MODEL_LABEL_LEN,
-  escrowPda,
-  providerPda,
-  readPrivate,
-  registerProvider,
-} from "@inference-market/client";
-import { CountUp } from "../components/CountUp";
-import { JobCard } from "../components/JobCard";
-import { JobDetail } from "../components/JobDetail";
-import type { EscrowView } from "../components/JobDetail";
-import { OpenJobsFeed } from "../components/OpenJobsFeed";
-import { Sealed } from "../components/Sealed";
-import { SlideOver } from "../components/SlideOver";
-import { RefreshIcon } from "../components/icons";
+import { MODEL_LABEL_LEN, providerPda, registerProvider } from "@inference-market/client";
+import { Pipeline, StateWord } from "../components/Pipeline";
 import { useJobs } from "../hooks/useJobs";
 import type { Market } from "../hooks/useMarket";
 import { useNow } from "../hooks/useNow";
 import { useOpenJobs } from "../hooks/useOpenJobs";
 import { useNotify } from "../notify";
-import { stagger } from "../motion";
-import { LAMPORTS, byteLen, errText, labelText, num, shortKey, statusKey } from "../lib/format";
+import {
+  LAMPORTS,
+  countdown,
+  errText,
+  labelText,
+  num,
+  shortKey,
+  solText,
+  statusKey,
+} from "../lib/format";
 
-type ProviderAccount = {
-  modelLabel: number[];
-  completed: number;
-  rejected: number;
-} | null;
+type ProviderAccount = { modelLabel: number[]; completed: number; rejected: number } | null;
 
 export function Provider({ market }: { market: Market }) {
   const { base, er, wallet } = market;
   const notify = useNotify();
-  const owner = wallet.publicKey;
+  const owner = wallet.publicKey ?? null;
   const now = useNow();
 
   const mine = useCallback(
-    (account: any) => Boolean(owner && account.provider.equals(owner)),
+    (a: any) => Boolean(owner && a.provider.equals(owner)),
     [owner],
   );
-  const { jobs, refresh } = useJobs(base, er, mine);
+  const { jobs } = useJobs(base, er, mine);
   const open = useOpenJobs(er);
 
   const [account, setAccount] = useState<ProviderAccount>(null);
   const [loaded, setLoaded] = useState(false);
-  const [model, setModel] = useState("llama-3.1-8b");
+  const [model, setModel] = useState("claude");
   const [busy, setBusy] = useState(false);
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [escrow, setEscrow] = useState<EscrowView>(null);
-  const [output, setOutput] = useState<string | null>(null);
-
-  const row = useMemo(
-    () => jobs?.find((j) => j.publicKey.toBase58() === selectedKey) ?? null,
-    [jobs, selectedKey],
-  );
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState("");
 
   /**
-   * What this key has earned from the jobs still on chain. `Provider` stores
-   * only the counters, so the total is summed from approved jobs; a job the
-   * requester has closed no longer counts, which the note under the tile says.
+   * Earned is summed from approved jobs still on chain. The `Provider` account
+   * stores only the counters, so a job the requester has closed no longer
+   * counts; the tile says so rather than implying a lifetime total.
    */
   const earned = useMemo(() => {
     if (!jobs) return 0;
@@ -87,220 +71,200 @@ export function Provider({ market }: { market: Market }) {
     void loadAccount();
   }, [loadAccount]);
 
-  useEffect(() => {
-    if (!base || !row) {
-      setEscrow(null);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const e = await base.account.escrow.fetchNullable(escrowPda(row.publicKey));
-        if (!cancelled) setEscrow(e);
-      } catch {
-        if (!cancelled) setEscrow(null);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [base, row, jobs]);
-
-  // The provider is on the job's permission list too, so it can read back what
-  // its own worker sealed. Rendered behind the same seal, never logged.
-  useEffect(() => {
-    if (!er || !row || row.layer !== "er") {
-      setOutput(null);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const { output: bytes } = await readPrivate(er, row.publicKey);
-        if (!cancelled) setOutput(bytes.length ? new TextDecoder().decode(bytes) : null);
-      } catch {
-        if (!cancelled) setOutput(null);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [er, row, jobs]);
-
   const register = async (e: FormEvent) => {
     e.preventDefault();
     if (!base || !owner || !model.trim()) return;
     setBusy(true);
+    setError(null);
     try {
       const sig = await registerProvider(base, owner, model.trim());
-      notify("ok", "Provider registered", `Signature ${shortKey(sig, 8)}`);
+      notify("ok", `registered · ${shortKey(sig, 4)}`);
       await loadAccount();
     } catch (err) {
-      notify("err", "Registration failed", errText(err));
+      setError(errText(err));
+      notify("err", "registration failed");
     } finally {
       setBusy(false);
     }
   };
 
+  const feed = useMemo(() => {
+    if (!open.jobs) return null;
+    const q = filter.trim().toLowerCase();
+    return q
+      ? open.jobs.filter((j) => labelText(j.account.modelLabel).toLowerCase().includes(q))
+      : open.jobs;
+  }, [open.jobs, filter]);
+
+  const labels = useMemo(() => {
+    const set = new Set<string>();
+    for (const j of open.jobs ?? []) {
+      const l = labelText(j.account.modelLabel);
+      if (l) set.add(l);
+    }
+    return [...set].slice(0, 5);
+  }, [open.jobs]);
+
   if (!owner) {
     return (
       <div className="page">
-        <div className="empty">
-          <h3>No wallet connected</h3>
-          <p>Connect the wallet your worker signs with to register it and watch its jobs.</p>
+        <div className="page-head">
+          <h2>
+            Serve inference,
+            <br />
+            get paid on approval.
+          </h2>
         </div>
+        <p className="empty">connect the wallet your worker signs with</p>
       </div>
     );
   }
 
   return (
     <div className="page">
-      {account ? (
-        <div className="stats">
-          <div className="stat stat-accent">
-            <span className="label">Earned</span>
-            <div className="stat-value">
-              <CountUp value={earned / LAMPORTS} decimals={3} />
-              <small>SOL</small>
-            </div>
-            <p className="stat-note">From approved jobs still on chain.</p>
-          </div>
-          <div className="stat">
-            <span className="label">Completed</span>
-            <div className="stat-value">
-              <CountUp value={account.completed} />
-            </div>
-            <p className="stat-note">Counted when the escrow settles.</p>
-          </div>
-          <div className="stat">
-            <span className="label">Rejected</span>
-            <div className="stat-value">
-              <CountUp value={account.rejected} />
-            </div>
-            <p className="stat-note">Refunded to the requester.</p>
-          </div>
-          <div className="stat">
-            <span className="label">Serving</span>
-            <div className="stat-value" style={{ fontSize: "var(--t-xl)" }}>
-              {labelText(account.modelLabel) || "unlabelled"}
-            </div>
-            <p className="stat-note">Authority {shortKey(owner, 4)}</p>
-          </div>
+      <div className="page-head">
+        <h2>
+          Serve inference,
+          <br />
+          get paid on approval.
+        </h2>
+      </div>
+
+      <div className="tiles" style={{ marginBottom: 28 }}>
+        <div className="tile">
+          <span className="cap">Earned</span>
+          <b>
+            {account ? (earned / LAMPORTS).toFixed(3) : "—"}
+            {account ? <small>SOL</small> : null}
+          </b>
+          <span style={{ fontSize: 13, color: "var(--muted)" }}>
+            From approved jobs still on chain.
+          </span>
         </div>
-      ) : (
-        <form className="panel" onSubmit={register}>
-          <div className="panel-head">
-            <h3>Register this wallet as a provider</h3>
-          </div>
-          <div className="panel-body">
-            <p className="sub" style={{ marginBottom: 16 }}>
-              {loaded
-                ? "Register once, then run the worker with the same key. It claims open jobs, answers them inside the enclave and seals the output."
-                : "Reading the provider account…"}
-            </p>
-            <div className="field">
-              <label className="label" htmlFor="provider-model">
-                Model you serve
-              </label>
-              <input
-                id="provider-model"
-                value={model}
-                maxLength={MODEL_LABEL_LEN}
-                disabled={busy || !base}
-                onChange={(e) => setModel(e.target.value)}
-                placeholder="llama-3.1-8b"
-              />
-            </div>
-            <div className="field">
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={busy || !base || !model.trim()}
-              >
-                {busy ? <i className="spin" /> : null}
-                Register provider
-              </button>
-            </div>
-          </div>
+        <div className="tile">
+          <span className="cap">Completed</span>
+          <b>{account ? account.completed : "—"}</b>
+          <span style={{ fontSize: 13, color: "var(--muted)" }}>Counted when the escrow settles.</span>
+        </div>
+        <div className="tile">
+          <span className="cap">Rejected</span>
+          <b>{account ? account.rejected : "—"}</b>
+          <span style={{ fontSize: 13, color: "var(--muted)" }}>Refunded to the requester.</span>
+        </div>
+        <div className="tile">
+          <span className="cap">Serving</span>
+          <b style={{ fontSize: 20 }}>{account ? labelText(account.modelLabel) || "unlabelled" : "—"}</b>
+          <span className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>
+            {shortKey(owner, 4)}
+          </span>
+        </div>
+      </div>
+
+      {!account ? (
+        <form className="register" onSubmit={register} style={{ marginBottom: 32 }}>
+          <label className="field" style={{ flex: 1 }}>
+            <span className="sr">Model label</span>
+            <input
+              value={model}
+              maxLength={MODEL_LABEL_LEN}
+              disabled={busy || !base}
+              placeholder="claude"
+              onChange={(e) => setModel(e.target.value)}
+            />
+            <span>label</span>
+          </label>
+          <button type="submit" className="btn btn-ink" disabled={busy || !base || !model.trim()}>
+            {busy ? <i className="spin" /> : null}
+            Register provider
+          </button>
         </form>
-      )}
+      ) : null}
 
-      <OpenJobsFeed jobs={open.jobs} now={now} error={open.error} />
+      {error ? <p className="notice" style={{ marginBottom: 24 }}>{error}</p> : null}
 
-      <section>
-        <div className="section-head">
-          <h2>Jobs you took</h2>
-          {jobs ? <span className="count">{jobs.length}</span> : null}
-          <span className="spacer" />
+      <div className="page-head" style={{ marginTop: 8 }}>
+        <h2 style={{ fontSize: 22 }}>Open jobs</h2>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button
             type="button"
-            className="iconbtn"
-            onClick={() => void refresh()}
-            aria-label="Refresh job list"
+            className="pill"
+            aria-pressed={filter === ""}
+            style={filter === "" ? { background: "var(--ink)", color: "oklch(98% 0.006 80)" } : undefined}
+            onClick={() => setFilter("")}
           >
-            <RefreshIcon />
+            all
           </button>
+          {labels.map((l) => (
+            <button
+              key={l}
+              type="button"
+              className="pill"
+              aria-pressed={filter === l}
+              style={filter === l ? { background: "var(--ink)", color: "oklch(98% 0.006 80)" } : undefined}
+              onClick={() => setFilter(l)}
+            >
+              {l}
+            </button>
+          ))}
         </div>
+      </div>
 
-        {jobs === null ? (
-          <div className="cards">
-            {[0, 1, 2].map((i) => (
-              <div className="skeleton-card" key={i}>
-                <div className="sk" style={{ width: "62%" }} />
-                <div className="sk" style={{ width: "38%", height: 9 }} />
-                <div className="sk" style={{ height: 3, marginTop: 8 }} />
+      {open.error ? (
+        <p className="notice">{open.error}</p>
+      ) : feed === null ? (
+        <p className="empty">reading the rollup…</p>
+      ) : feed.length === 0 ? (
+        <p className="empty">no open jobs right now · new ones appear within a few seconds</p>
+      ) : (
+        <div className="rows" style={{ marginBottom: 32 }}>
+          {feed.slice(0, 12).map((j) => (
+            <div key={j.publicKey.toBase58()} className="row" style={{ cursor: "default" }}>
+              <div className="row-title">
+                <b>{labelText(j.account.modelLabel) || "unlabelled"}</b>
+                <em>
+                  {shortKey(j.publicKey, 4)} · from {shortKey(j.account.requester, 4)}
+                </em>
               </div>
-            ))}
-          </div>
-        ) : jobs.length === 0 ? (
-          <div className="empty">
-            <h3>Nothing claimed</h3>
-            <p>
-              Jobs land here once the worker claims one from the feed above, and stay until the
-              requester closes them.
-            </p>
-          </div>
-        ) : (
-          <motion.div className="cards" variants={stagger} initial="hidden" animate="show">
-            <AnimatePresence mode="popLayout">
-              {jobs.map((j) => (
-                <JobCard
-                  key={j.publicKey.toBase58()}
-                  row={j}
-                  now={now}
-                  selected={j.publicKey.toBase58() === selectedKey}
-                  paid={j.publicKey.toBase58() === selectedKey ? escrow?.paid : undefined}
-                  onSelect={() => setSelectedKey(j.publicKey.toBase58())}
-                />
-              ))}
-            </AnimatePresence>
-          </motion.div>
-        )}
-      </section>
+              <span className="row-price">{solText(j.account.priceLamports)} SOL</span>
+              <Pipeline job={j.account} />
+              <span className="state">{countdown(j.account.deadlineUnix, now)}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
-      <SlideOver open={Boolean(row)} onClose={() => setSelectedKey(null)} label="Job detail">
-        {row ? (
-          <JobDetail
-            row={row}
-            escrow={escrow}
-            now={now}
-            onClose={() => setSelectedKey(null)}
-            result={
-              output ? (
-                <Sealed
-                  text={output}
-                  caption={`Output · ${byteLen(output).toLocaleString()} bytes`}
-                />
-              ) : (
-                <p className="note">
-                  Claiming and submitting happen in the worker. What it sealed shows up here while
-                  the job is still on the rollup.
-                </p>
-              )
-            }
-          />
-        ) : null}
-      </SlideOver>
+      <div className="page-head" style={{ marginTop: 8 }}>
+        <h2 style={{ fontSize: 22 }}>Claimed by you</h2>
+        <span style={{ fontSize: 14, color: "var(--muted)" }}>
+          {jobs ? `${jobs.length} total` : ""}
+        </span>
+      </div>
+
+      {jobs === null ? (
+        <p className="empty">reading your jobs…</p>
+      ) : jobs.length === 0 ? (
+        <p className="empty">
+          {loaded && !account
+            ? "register above, then run the worker with this key"
+            : "nothing claimed yet · run the worker to claim from the feed above"}
+        </p>
+      ) : (
+        <div className="rows">
+          {jobs.map((j) => (
+            <div key={j.publicKey.toBase58()} className="row" style={{ cursor: "default" }}>
+              <div className="row-title">
+                <b>{labelText(j.account.modelLabel) || "unlabelled"}</b>
+                <em>
+                  {shortKey(j.publicKey, 4)} · {countdown(j.account.deadlineUnix, now)}
+                </em>
+              </div>
+              <span className="row-price">{solText(j.account.priceLamports)} SOL</span>
+              <Pipeline job={j.account} />
+              <StateWord job={j.account} />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

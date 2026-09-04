@@ -3,48 +3,51 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="dark" />
-    <meta name="theme-color" content="#0b0c10" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#faf9f5" />
     <meta
       name="description"
-      content="Private inference, settled on Solana. Post a prompt to a TEE rollup, pay the provider only when you approve the answer."
+      content="Ask anything. Only the provider you choose can read it. Private inference sealed in a TEE-backed rollup and settled on Solana."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
     />
     <title>Inference Market</title>
   </head>
   <body>
     <!--
-      DIRECTION CONTRACT — seed key: brief-pinned/2026-09-04-r2 (no roll; the
-      user pinned the world, and a pinned direction beats the roll).
+      DIRECTION CONTRACT — seed key: calm-canvas/2026-09-04-r3 (no roll; ported
+      from the approved artboards in design/canvas: Main, Chat and App).
 
-      THESIS: An inference provider's product site where the sealed state is the
-      product. It refuses the admin console every job board ships: no rows, no
-      sortable columns, no split list-detail, no sidebar.
+      THESIS: A private chat whose every turn is a paid, sealed job on chain.
+      The ledger is public, the words are not. It refuses both the admin console
+      and the dark neon dashboard the category defaults to.
 
-      OWN-WORLD: Near-black #0b0c10 ground, panels at #14161c, hairline borders,
-      one violet (#8b5cf6, filled as #7c3aed) spent only on the live lifecycle
-      step, the primary action, the tab underline and the seal. Status hues stay
-      quieter than the accent. System stack on a 14/16/20/28/40 scale, 8-pt
-      spacing, and exactly one soft radial glow, behind the hero.
+      OWN-WORLD: Warm near-white canvas oklch(98.2% 0.006 80), ink at 22%
+      lightness, one teal accent oklch(58% 0.09 175) on the send button, the
+      live rail step and the sealed mark. Bricolage Grotesque for display,
+      Instrument Sans for UI, JetBrains Mono for anything on chain. Pills at
+      999px, surfaces at 14 to 28px, hairlines at oklch(92% 0.01 80), and
+      exactly one radial wash, behind the landing hero.
 
-      STORY: A visitor reads what the market does from an animated schematic,
-      connects a wallet, writes a prompt in a chat-shaped box, watches four
-      measured steps carry it into the enclave, sees each job's whole life on one
-      rail, breaks the seal on the answer, and approves.
+      STORY: A visitor reads what the market does, opens the app, types into a
+      chat, watches four quiet steps seal the prompt, reads the answer, and
+      approves the payment inline.
 
-      FIRST VIEWPORT: Compact top bar. Then the hero: headline, one-line
-      explainer, "Connect wallet", the Requester to TEE rollup to Provider to
-      Settled schematic with flowing dashed wires and a pulsing enclave, and
-      three value props.
+      FIRST VIEWPORT: Landing hero, headline over the schematic card, then the
+      proof strip. In the app, the chat: rail, thread, pinned composer.
 
-      FORM: Landing hero collapsing into an app shell; card grid plus right-hand
-      slide-over. Motion by Framer Motion; transform, opacity, filter and
-      stroke-dashoffset only.
+      FORM: Landing plus a four-route app shell, chat-first. Plain CSS; no
+      animation library. Transform, opacity, filter and stroke-dashoffset only.
 
-      FINISH: two batched inspection rounds, desktop and mobile, plus a clean
-      design-detector pass. The shipped finish-reviewer and documenter subagents
-      are disallowed for this task, so DESIGN.md is not written; that gap is
-      reported rather than hidden.
+      FINISH: two batched inspection rounds at 1440, 768 and 375 wide, plus a
+      clean design-detector pass. The shipped finish-reviewer and documenter
+      subagents are disallowed for this task, so DESIGN.md is not written; that
+      gap is reported rather than hidden.
     -->
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
