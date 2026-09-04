@@ -33,3 +33,13 @@ rpc_port = 8899
 
 [[test.validator.clone]]
 address = "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"
+
+# The magic program exists only inside an ephemeral rollup, so a local base-layer
+# validator has nothing at its address and Anchor's `Program<'info, MagicProgram>`
+# check fails with InvalidProgramExecutable before any handler body runs. Map an
+# executable there (the program's own .so, which is never invoked, because the
+# FinishJob authorization checks reject before reaching a CPI) so the
+# authorization negatives can be exercised locally.
+[[test.genesis]]
+address = "Magic11111111111111111111111111111111111111"
+program = "target/deploy/inference_market.so"
