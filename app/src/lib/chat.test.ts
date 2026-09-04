@@ -3,10 +3,12 @@ import test from "node:test";
 import { PROMPT_MAX } from "@inference-market/client";
 import {
   DRAFT_MAX,
+  EMPTY_READ_LIMIT,
   PREAMBLE,
   PREAMBLE_BYTES,
   buildPrompt,
   capBytes,
+  isEmptyAnswer,
   isLive,
   isPollable,
 } from "./chat";
@@ -26,41 +28,42 @@ const bot = (text: string, extra: Partial<ChatMsg> = {}): ChatMsg => ({
 test("the draft cap leaves room for the preamble and the marker", () => {
   assert.equal(PREAMBLE_BYTES, byteLen(`${PREAMBLE}\n\n`));
   assert.ok(DRAFT_MAX < PROMPT_MAX);
-  // A draft exactly at the cap still fits once the preamble is added.
   const draft = "x".repeat(DRAFT_MAX);
-  assert.ok(byteLen(buildPrompt([], draft)) <= PROMPT_MAX);
+  assert.ok(buildPrompt([], draft).bytes <= PROMPT_MAX);
 });
 
-test("buildPrompt keeps a short conversation whole", () => {
+test("buildPrompt keeps a short conversation whole and reports no trim", () => {
   const out = buildPrompt([user("hello"), bot("hi")], "again");
-  assert.ok(out.startsWith(PREAMBLE));
-  assert.ok(out.includes("User: hello"));
-  assert.ok(out.includes("Assistant: hi"));
-  assert.ok(out.endsWith("User: again"));
+  assert.ok(out.text.startsWith(PREAMBLE));
+  assert.ok(out.text.includes("User: hello"));
+  assert.ok(out.text.includes("Assistant: hi"));
+  assert.ok(out.text.endsWith("User: again"));
+  assert.equal(out.trimmed, false);
+  assert.equal(out.bytes, byteLen(out.text));
 });
 
-test("buildPrompt drops the oldest turns first and always fits", () => {
+test("buildPrompt drops the oldest turns first, fits, and reports the trim", () => {
   const big = "a".repeat(1500);
   const history = [user(big), bot(big), user(big), bot(big)];
   const out = buildPrompt(history, "the newest question");
 
-  assert.ok(byteLen(out) <= PROMPT_MAX, `got ${byteLen(out)} bytes`);
-  assert.ok(out.endsWith("User: the newest question"));
-  // The newest history turn survives, the oldest does not.
-  assert.ok(out.includes("Assistant:"));
-  assert.ok(byteLen(out) > PROMPT_MAX / 2, "should keep as much as fits");
+  assert.ok(out.bytes <= PROMPT_MAX, `got ${out.bytes} bytes`);
+  assert.ok(out.text.endsWith("User: the newest question"));
+  assert.equal(out.trimmed, true, "dropping turns must be reported");
+  assert.ok(out.bytes > PROMPT_MAX / 2, "should keep as much as fits");
 });
 
 test("buildPrompt truncates a single oversized turn rather than overflowing", () => {
   const out = buildPrompt([], "z".repeat(PROMPT_MAX * 2));
-  assert.ok(byteLen(out) <= PROMPT_MAX, `got ${byteLen(out)} bytes`);
-  assert.ok(out.startsWith(PREAMBLE));
+  assert.ok(out.bytes <= PROMPT_MAX, `got ${out.bytes} bytes`);
+  assert.ok(out.text.startsWith(PREAMBLE));
+  assert.equal(out.trimmed, true);
 });
 
 test("buildPrompt fits even with oversized history and an oversized draft", () => {
   const history = [user("q".repeat(PROMPT_MAX)), bot("r".repeat(PROMPT_MAX))];
   const out = buildPrompt(history, "w".repeat(PROMPT_MAX));
-  assert.ok(byteLen(out) <= PROMPT_MAX, `got ${byteLen(out)} bytes`);
+  assert.ok(out.bytes <= PROMPT_MAX, `got ${out.bytes} bytes`);
 });
 
 test("capBytes never splits a code point", () => {
@@ -81,14 +84,25 @@ test("a message being settled is never polled", () => {
 test("only open, claimed, and an empty submitted are polled", () => {
   assert.equal(isPollable(bot("", { state: "open", job: "J" })), true);
   assert.equal(isPollable(bot("", { state: "claimed", job: "J" })), true);
-  // Submitted with no output yet: keep polling for the text.
   assert.equal(isPollable(bot("", { state: "submitted", job: "J" })), true);
-  // Submitted with output: nothing left to fetch.
   assert.equal(isPollable(bot("answer", { state: "submitted", job: "J" })), false);
-  // Publishing has no job account to read yet.
   assert.equal(isPollable(bot("", { state: "publishing", job: "J" })), false);
-  // No job key at all.
   assert.equal(isPollable(bot("", { state: "open" })), false);
+});
+
+test("an empty output stops being polled after the read limit", () => {
+  const at = (n: number) => bot("", { state: "submitted", job: "J", emptyReads: n });
+  assert.equal(isPollable(at(0)), true);
+  assert.equal(isPollable(at(EMPTY_READ_LIMIT - 1)), true);
+  assert.equal(isPollable(at(EMPTY_READ_LIMIT)), false, "must give up, not spin");
+  assert.equal(isPollable(at(EMPTY_READ_LIMIT + 3)), false);
+});
+
+test("a genuinely empty answer is reported once the poll gave up", () => {
+  assert.equal(isEmptyAnswer(bot("", { state: "submitted", emptyReads: EMPTY_READ_LIMIT })), true);
+  // Still polling: not yet an empty answer, just an unread one.
+  assert.equal(isEmptyAnswer(bot("", { state: "submitted", emptyReads: 1 })), false);
+  assert.equal(isEmptyAnswer(bot("text", { state: "submitted", emptyReads: 9 })), false);
 });
 
 test("isLive still reports settling as in flight for the UI", () => {

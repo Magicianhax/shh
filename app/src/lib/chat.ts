@@ -41,6 +41,12 @@ export type ChatMsg = {
   decision?: "approve" | "reject";
   /** A settle-phase failure, shown inline with a retry that skips `finishJob`. */
   settleError?: string | null;
+  /**
+   * Consecutive polls that found the job submitted with a zero-length output.
+   * A provider may legitimately seal nothing, so the poll gives up after
+   * `EMPTY_READ_LIMIT` tries rather than spinning forever.
+   */
+  emptyReads?: number;
 };
 
 export type Conversation = {
@@ -126,6 +132,13 @@ const turn = (m: ChatMsg) => `${m.role === "user" ? "User" : "Assistant"}: ${m.t
 /** Re-exported so the composer and the prompt builder share one definition. */
 export { capBytes };
 
+export type BuiltPrompt = {
+  text: string;
+  bytes: number;
+  /** True when older turns had to be dropped to fit. */
+  trimmed: boolean;
+};
+
 /**
  * The prompt for one turn: a short preamble, then as much of this conversation
  * as fits in `PROMPT_MAX` bytes, dropping the oldest turns first so the newest
@@ -134,8 +147,11 @@ export { capBytes };
  * The result is guaranteed to fit. When even the newest turn alone is too long,
  * that turn is truncated rather than returned oversized, because the caller
  * hands this straight to `publishJob`, which rejects anything over the cap.
+ *
+ * `trimmed` is reported rather than inferred: the caller cannot tell from the
+ * byte count alone, because a trimmed prompt is by definition under the cap.
  */
-export function buildPrompt(history: ChatMsg[], next: string): string {
+export function buildPrompt(history: ChatMsg[], next: string): BuiltPrompt {
   const usable = history.filter((m) => m.text.trim().length > 0);
   const head = `${PREAMBLE}\n\n`;
 
@@ -154,17 +170,16 @@ export function buildPrompt(history: ChatMsg[], next: string): string {
     out = compose(start, tail);
   }
 
+  let truncated = false;
   if (byteLen(out) > PROMPT_MAX) {
     // No history left to drop, so the newest turn itself is over budget.
     const room = PROMPT_MAX - byteLen(compose(usable.length, ""));
     out = compose(usable.length, capBytes(tail, Math.max(0, room)));
+    truncated = true;
   }
 
-  return out;
+  return { text: out, bytes: byteLen(out), trimmed: start > 0 || truncated };
 }
-
-export const contextBytes = (history: ChatMsg[], draft: string): number =>
-  byteLen(buildPrompt(history, draft));
 
 /** In flight from the user's point of view: something is still happening. */
 export const isLive = (state?: ChatState): boolean =>
@@ -178,13 +193,21 @@ export const isLive = (state?: ChatState): boolean =>
  * Approve/Reject and let the auto-approve effect fire a second signature.
  * "submitted" is polled only while the output has not arrived yet.
  */
+export const EMPTY_READ_LIMIT = 5;
+
 export const isPollable = (m: ChatMsg): boolean =>
   Boolean(
     m.job &&
       (m.state === "open" ||
         m.state === "claimed" ||
-        (m.state === "submitted" && m.text.length === 0)),
+        (m.state === "submitted" &&
+          m.text.length === 0 &&
+          (m.emptyReads ?? 0) < EMPTY_READ_LIMIT)),
   );
+
+/** A submitted turn whose output really is empty, after the poll gave up. */
+export const isEmptyAnswer = (m: ChatMsg): boolean =>
+  m.state === "submitted" && m.text.length === 0 && (m.emptyReads ?? 0) >= EMPTY_READ_LIMIT;
 
 /** Groups conversations the way the rail shows them. */
 export function groupByDay(convs: Conversation[]): { label: string; items: Conversation[] }[] {

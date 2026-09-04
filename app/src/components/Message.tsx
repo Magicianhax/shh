@@ -1,6 +1,7 @@
 import { AUTO_APPROVE_SECS } from "@inference-market/client";
 import { CheckIcon, LockIcon } from "./icons";
 import type { ChatMsg } from "../lib/chat";
+import { isEmptyAnswer } from "../lib/chat";
 import { LAMPORTS, shortKey } from "../lib/format";
 import { msText } from "../lib/latency";
 
@@ -8,6 +9,8 @@ type Props = {
   msg: ChatMsg;
   now: number;
   busy: boolean;
+  /** True while this message's settle half is running in this session. */
+  settleRunning: boolean;
   onDecide: (kind: "approve" | "reject") => void;
   onRetrySettle: () => void;
 };
@@ -27,7 +30,7 @@ function stepLine(msg: ChatMsg): string {
   return parts.join(" · ");
 }
 
-export function Message({ msg, now, busy, onDecide, onRetrySettle }: Props) {
+export function Message({ msg, now, busy, settleRunning, onDecide, onRetrySettle }: Props) {
   if (msg.role === "user") {
     return (
       <div className="msg-user">
@@ -40,6 +43,13 @@ export function Message({ msg, now, busy, onDecide, onRetrySettle }: Props) {
   const publishing =
     msg.state === "publishing" || msg.state === "open" || msg.state === "claimed";
   const settling = msg.state === "settling";
+  /**
+   * Settling with nothing running means the tab was closed or the conversation
+   * switched mid-settlement. Say so and offer the retry; never resume on its own,
+   * because that would prompt the wallet without the user asking.
+   */
+  const interrupted = settling && !settleRunning;
+  const canRetrySettle = settling && Boolean(msg.decision);
 
   const openAt = msg.deadlineUnix ? (msg.deadlineUnix + AUTO_APPROVE_SECS) * 1000 : null;
   const openInMin = openAt ? Math.max(0, Math.round((openAt - now) / 60000)) : null;
@@ -53,6 +63,10 @@ export function Message({ msg, now, busy, onDecide, onRetrySettle }: Props) {
       <div className="msg-body">
         {msg.text ? <div className="msg-text">{msg.text}</div> : null}
 
+        {isEmptyAnswer(msg) ? (
+          <p className="steps-line">the provider sealed an empty answer</p>
+        ) : null}
+
         {publishing ? (
           <>
             <span className="dots" aria-label="Working">
@@ -64,7 +78,7 @@ export function Message({ msg, now, busy, onDecide, onRetrySettle }: Props) {
           </>
         ) : null}
 
-        {settling ? (
+        {settling && !interrupted ? (
           <div className="msg-meta">
             <span className="ok">
               <i className="spin" style={{ color: "var(--acc)" }} />
@@ -72,6 +86,13 @@ export function Message({ msg, now, busy, onDecide, onRetrySettle }: Props) {
             </span>
             {msg.sig ? <span className="mono">{shortKey(msg.sig, 4)}</span> : null}
           </div>
+        ) : null}
+
+        {interrupted && !msg.settleError ? (
+          <p className="steps-line">
+            settlement was interrupted · your {msg.decision === "reject" ? "rejection" : "approval"}
+            {" "}is on chain, the payout is not finished
+          </p>
         ) : null}
 
         {msg.state === "submitted" ? (
@@ -133,15 +154,20 @@ export function Message({ msg, now, busy, onDecide, onRetrySettle }: Props) {
           </div>
         ) : null}
 
-        {msg.settleError ? (
-          <>
-            <p className="notice">{msg.settleError}</p>
-            <div className="msg-actions">
-              <button type="button" className="btn" onClick={onRetrySettle}>
-                Settle now
-              </button>
-            </div>
-          </>
+        {msg.settleError ? <p className="notice">{msg.settleError}</p> : null}
+
+        {/* Available for the whole of "settling", not only after a failure. */}
+        {canRetrySettle ? (
+          <div className="msg-actions">
+            <button
+              type="button"
+              className="btn"
+              disabled={settleRunning}
+              onClick={onRetrySettle}
+            >
+              {settleRunning ? "Settling…" : "Settle now"}
+            </button>
+          </div>
         ) : null}
 
         {msg.state === "failed" && msg.error ? <p className="notice">{msg.error}</p> : null}

@@ -14,6 +14,7 @@ import {
 import type { Market } from "./useMarket";
 import type { ChatMsg, Conversation, Store } from "../lib/chat";
 import {
+  EMPTY_READ_LIMIT,
   buildPrompt,
   freshSteps,
   isPollable,
@@ -53,8 +54,10 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * Settlement is a two-phase machine on purpose. `finishJob` is the only step
  * that can be retried safely as a whole; once it lands, the decision is on
  * chain and the message stays in "settling" until the escrow actually reads
- * paid. Polling never rewinds a message out of "settling", and one flag records
- * that a decision was attempted so a failure can never loop the wallet.
+ * paid. Polling never rewinds a message out of "settling", one flag records
+ * that a decision was attempted so a failure cannot loop the wallet, and the
+ * settle half stops the moment the view goes away, so nothing asks for a
+ * signature after the user has left.
  */
 export function useChat(market: Market) {
   const { base, er, router, validator, wallet, connection } = market;
@@ -62,6 +65,8 @@ export function useChat(market: Market) {
 
   const [store, setStore] = useState<Store>(() => loadStore());
   const [busy, setBusy] = useState(false);
+  /** Message ids whose settle half is running in this session, right now. */
+  const [settling, setSettling] = useState<Record<string, true>>({});
   const publishWatcher = useRef(0);
   const sending = useRef(false);
   const storeRef = useRef(store);
@@ -75,6 +80,27 @@ export function useChat(market: Market) {
     () => store.convs.find((c) => c.id === store.activeId) ?? null,
     [store],
   );
+
+  /**
+   * Nothing may prompt the wallet or write state once the chat is gone or the
+   * user has switched conversations. A settle run that stops this way leaves the
+   * message in "settling", which the UI reports as interrupted with a manual
+   * retry; it never resumes on its own.
+   */
+  const mounted = useRef(true);
+  const activeIdRef = useRef(store.activeId);
+  activeIdRef.current = store.activeId;
+  const alive = useCallback(
+    (convId: string) => mounted.current && activeIdRef.current === convId,
+    [],
+  );
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   // ---- conversation management -------------------------------------------
 
@@ -225,7 +251,7 @@ export function useChat(market: Market) {
           owner,
           nonce,
           validator,
-          new TextEncoder().encode(prompt),
+          new TextEncoder().encode(prompt.text),
         );
         stopPublishWatcher();
 
@@ -264,24 +290,26 @@ export function useChat(market: Market) {
 
   /**
    * Phase two, and only phase two. The decision is already on chain, so this
-   * never rewinds the message; a failure here surfaces inline with a retry that
+   * never rewinds the message; a failure surfaces inline with a retry that
    * re-runs exactly this half.
    *
    * A scheduled Magic Action may pay the escrow on its own, so wait for that
    * before spending a signature: poll `Escrow.paid` for up to a minute, call
    * `settleDirect` once if it is still unpaid, then check again.
+   *
+   * Every step checks `alive(convId)` first. Leaving the chat or switching
+   * conversation stops the run before it can prompt the wallet, and the message
+   * stays in "settling" for the interrupted-settlement retry to pick up.
    */
   const settlePhase = useCallback(
     async (convId: string, msgId: string, jobKey: string, kind: "approve" | "reject") => {
-      if (!base || !owner) return;
+      if (!base || !owner) {
+        patchMsg(convId, msgId, (m) => ({ ...m, settleError: "wallet not connected" }));
+        return;
+      }
+
       const job = new PublicKey(jobKey);
       const escrow = escrowPda(job);
-      const done = () =>
-        patchMsg(convId, msgId, (m) => ({
-          ...m,
-          state: kind === "approve" ? "settled" : "rejected",
-          settleError: null,
-        }));
 
       const paid = async (): Promise<boolean> => {
         const e: any = await base.account.escrow.fetchNullable(escrow);
@@ -289,23 +317,37 @@ export function useChat(market: Market) {
         return e === null ? true : Boolean(e.paid);
       };
 
+      setSettling((s) => ({ ...s, [msgId]: true }));
       try {
         patchMsg(convId, msgId, (m) => ({ ...m, settleError: null }));
         await waitForUndelegation(connection, job);
+        if (!alive(convId)) return;
 
         const deadline = Date.now() + SETTLE_WAIT_MS;
         while (Date.now() < deadline) {
+          if (!alive(convId)) return;
           if (await paid()) {
-            done();
+            patchMsg(convId, msgId, (m) => ({
+              ...m,
+              state: kind === "approve" ? "settled" : "rejected",
+              settleError: null,
+            }));
             return;
           }
           await sleep(SETTLE_POLL_MS);
         }
 
+        // The last check before a signature is requested.
+        if (!alive(convId)) return;
         const sig = await settleDirect(base, owner, job);
         patchMsg(convId, msgId, (m) => ({ ...m, sig }));
+
         if (await paid()) {
-          done();
+          patchMsg(convId, msgId, (m) => ({
+            ...m,
+            state: kind === "approve" ? "settled" : "rejected",
+            settleError: null,
+          }));
           return;
         }
         patchMsg(convId, msgId, (m) => ({
@@ -314,9 +356,15 @@ export function useChat(market: Market) {
         }));
       } catch (e) {
         patchMsg(convId, msgId, (m) => ({ ...m, settleError: errText(e) }));
+      } finally {
+        setSettling((s) => {
+          const next = { ...s };
+          delete next[msgId];
+          return next;
+        });
       }
     },
-    [base, connection, owner, patchMsg],
+    [alive, base, connection, owner, patchMsg],
   );
 
   /** Retry the settle half only. The decision itself is never sent twice. */
@@ -367,9 +415,10 @@ export function useChat(market: Market) {
         return;
       }
 
+      if (!alive(convId)) return;
       await settlePhase(convId, msgId, msg.job, kind);
     },
-    [er, owner, patchMsg, settlePhase],
+    [alive, er, owner, patchMsg, settlePhase],
   );
 
   // ---- polling ------------------------------------------------------------
@@ -416,11 +465,15 @@ export function useChat(market: Market) {
               num(acct.submittedAt) > 0 && num(acct.createdAt) > 0
                 ? (num(acct.submittedAt) - num(acct.createdAt)) * 1000
                 : null;
-            patchMsg(convId, msgId, (m) =>
-              !isPollable(m) || (m.state === "submitted" && m.text === text)
-                ? m
-                : { ...m, state: "submitted", provider, text, answeredMs },
-            );
+            patchMsg(convId, msgId, (m) => {
+              if (!isPollable(m)) return m;
+              if (m.state === "submitted" && m.text === text && text.length > 0) return m;
+              // A provider can legitimately seal nothing; count the empty reads
+              // so `isPollable` gives up instead of spinning on this job.
+              const emptyReads =
+                text.length === 0 ? Math.min(EMPTY_READ_LIMIT, (m.emptyReads ?? 0) + 1) : 0;
+              return { ...m, state: "submitted", provider, text, answeredMs, emptyReads };
+            });
           }
         } catch {
           /* the job may have left the rollup between polls; the next tick retries */
@@ -449,6 +502,8 @@ export function useChat(market: Market) {
     send,
     decide,
     retrySettle,
+    /** True while this message's settle half is running in this session. */
+    isSettleRunning: (msgId: string) => Boolean(settling[msgId]),
     ready: Boolean(base && er && validator && owner),
   };
 }

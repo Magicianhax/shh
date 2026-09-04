@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PROMPT_MAX } from "@inference-market/client";
 import { Message } from "../components/Message";
 import { PillMenu } from "../components/PillMenu";
 import { WalletChip } from "../components/WalletChip";
@@ -10,7 +9,7 @@ import type { Market } from "../hooks/useMarket";
 import { useNow } from "../hooks/useNow";
 import { useTee } from "../hooks/useTee";
 import { useBalance } from "../hooks/useBalance";
-import { DRAFT_MAX, capBytes, contextBytes, groupByDay } from "../lib/chat";
+import { DRAFT_MAX, buildPrompt, capBytes, groupByDay } from "../lib/chat";
 import { LAMPORTS, byteLen, shortKey } from "../lib/format";
 import { Link } from "../router";
 import { useNotify } from "../notify";
@@ -56,11 +55,12 @@ export function Chat({ market }: { market: Market }) {
 
   const history = active?.messages ?? [];
   const draftBytes = byteLen(draft);
-  const ctx = useMemo(() => contextBytes(history, draft), [history, draft]);
   // `buildPrompt` drops the oldest turns to fit, so only an oversized draft can
-  // block a send. The counter the user watches is the draft's own budget.
+  // block a send. The counter the user watches is the draft's own budget, and
+  // the builder reports whether it had to trim rather than the page guessing.
+  const prompt = useMemo(() => buildPrompt(history, draft), [history, draft]);
   const draftTooLong = draftBytes > DRAFT_MAX;
-  const historyTrimmed = ctx >= PROMPT_MAX && !draftTooLong;
+  const historyTrimmed = prompt.trimmed && !draftTooLong;
 
   // Grow the box with its content, up to the CSS max-height.
   useEffect(() => {
@@ -303,6 +303,7 @@ export function Chat({ market }: { market: Market }) {
                   msg={m}
                   now={now}
                   busy={chat.busy}
+                  settleRunning={chat.isSettleRunning(m.id)}
                   onDecide={(kind) => decide(m.id, kind)}
                   onRetrySettle={() => active && chat.retrySettle(active.id, m.id)}
                 />
