@@ -13,7 +13,7 @@ Spec: docs/superpowers/specs/2026-09-04-private-inference-network-design.md
 - [x] Task 7 devnet deploy
 - [x] Task 8 TS client library
 - [x] Task 9 devnet e2e test
-- [ ] Task 10 provider worker
+- [x] Task 10 provider worker
 - [ ] Task 11 web UI
 - [ ] Task 12 README + demo script
 
