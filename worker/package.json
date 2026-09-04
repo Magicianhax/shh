@@ -1,0 +1,16 @@
+{
+  "name": "@inference-market/worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node ../node_modules/tsx/dist/cli.mjs src/index.ts",
+    "test": "node ../node_modules/tsx/dist/cli.mjs --test src/__tests__/*.test.ts"
+  },
+  "dependencies": {
+    "@inference-market/client": "*",
+    "@coral-xyz/anchor": "0.32.1",
+    "@solana/web3.js": "^1.98.0",
+    "tweetnacl": "^1.0.3",
+    "dotenv": "^16.4.0"
+  }
+}
