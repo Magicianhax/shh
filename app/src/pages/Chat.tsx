@@ -152,7 +152,7 @@ export function Chat({ market }: { market: Market }) {
         <div className="rail-brand">
           <Link to="/" className="brand" style={{ fontSize: 15, color: "var(--ink)" }}>
             <Mark size={22} />
-            Inference Market
+            Shh.ai
           </Link>
         </div>
 

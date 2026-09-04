@@ -1,4 +1,9 @@
-# Private Inference Network
+# Shh.ai
+
+The chain sees the money, never the words.
+
+(The on-chain Anchor program keeps its original name, `inference_market`; this
+is a rename of the product's user-facing name only.)
 
 A private inference marketplace on Solana devnet. A requester posts a prompt, a
 provider answers it off-chain, and both the prompt and the answer stay hidden

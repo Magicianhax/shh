@@ -22,7 +22,7 @@ export function AppNav({ market, route }: Props) {
       <div className="appnav-left">
         <Link to="/" className="brand" style={{ color: "var(--ink)" }}>
           <Mark size={24} />
-          <span>Inference Market</span>
+          <span>Shh.ai</span>
         </Link>
         <nav className="toggle">
           <Link to="/chat" aria-current={route === "/chat" || route === "/jobs" ? "page" : undefined}>

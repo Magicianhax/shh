@@ -36,7 +36,7 @@ export function Landing() {
         <div className="nav">
           <span className="brand">
             <Mark size={26} />
-            Inference Market
+            Shh.ai
           </span>
           <div className="nav-links">
             <a href="#/chat">Product</a>
@@ -67,6 +67,9 @@ export function Landing() {
             <p className="hero-lede rise d3">
               Your prompt is sealed inside a TEE-backed rollup. A provider answers it there. You pay
               only when you approve, and the escrow settles on Solana in one transaction.
+            </p>
+            <p className="rise d3" style={{ margin: "4px 0 0", fontWeight: 500, color: "var(--acc-deep)" }}>
+              The chain sees the money, never the words.
             </p>
             <div className="hero-cta rise d4">
               <Link to="/chat" className="btn btn-acc btn-lg">
@@ -281,7 +284,7 @@ export function Landing() {
         </div>
 
         <div className="foot">
-          <span>Inference Market · Solana devnet · MagicBlock TEE rollup</span>
+          <span>Shh.ai · Solana devnet · MagicBlock TEE rollup</span>
           <span className="mono">Sample figures above are illustrative, not on-chain reads.</span>
         </div>
       </div>
