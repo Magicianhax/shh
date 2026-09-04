@@ -1,4 +1,9 @@
-import { PROMPT_MAX } from "@inference-market/client";
+import {
+  DEFAULT_MODEL_ID,
+  PROMPT_MAX,
+  modelById,
+  priceLamports,
+} from "@inference-market/client";
 import { byteLen, capBytes } from "./format";
 
 export type ChatState =
@@ -91,7 +96,16 @@ export const PREAMBLE_BYTES = byteLen(`${PREAMBLE}\n\n`);
  */
 export const DRAFT_MAX = PROMPT_MAX - PREAMBLE_BYTES - byteLen("User: ") - 2;
 
-const STORE_PREFIX = "im.chat.v1";
+/**
+ * v2: `Conversation.model` holds an exact catalog model id ("claude-opus-5"),
+ * where v1 held a free-text label ("claude"). A v1 conversation would keep
+ * posting jobs no worker matches, so the old key is left behind rather than
+ * migrated.
+ */
+const STORE_PREFIX = "im.chat.v2";
+
+/** The default model's own suggested price, in lamports. */
+export const DEFAULT_PRICE_LAMPORTS = priceLamports(modelById(DEFAULT_MODEL_ID)!);
 
 /**
  * Conversations belong to a wallet, not to a browser profile. Two people
@@ -111,8 +125,8 @@ export const newConversation = (): Conversation => ({
   id: `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
   title: "New chat",
   at: Date.now(),
-  model: "claude",
-  priceLamports: 10_000_000,
+  model: DEFAULT_MODEL_ID,
+  priceLamports: DEFAULT_PRICE_LAMPORTS,
   minutes: 30,
   autoApprove: false,
   messages: [],

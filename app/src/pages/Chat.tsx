@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DEFAULT_MODEL_ID, modelById, priceLamports } from "@inference-market/client";
 import { Message } from "../components/Message";
+import { ModelPicker } from "../components/ModelPicker";
 import { PillMenu } from "../components/PillMenu";
 import { WalletChip } from "../components/WalletChip";
 import { CloseIcon, MenuIcon, Mark, PlusIcon, SendIcon } from "../components/icons";
@@ -9,21 +11,30 @@ import type { Market } from "../hooks/useMarket";
 import { useNow } from "../hooks/useNow";
 import { useTee } from "../hooks/useTee";
 import { useBalance } from "../hooks/useBalance";
-import { DRAFT_MAX, buildPrompt, capBytes, groupByDay } from "../lib/chat";
-import { LAMPORTS, byteLen, shortKey } from "../lib/format";
+import { DEFAULT_PRICE_LAMPORTS, DRAFT_MAX, buildPrompt, capBytes, groupByDay } from "../lib/chat";
+import { LAMPORTS, byteLen, shortKey, solText } from "../lib/format";
 import { Link } from "../router";
 import { useNotify } from "../notify";
 
-const MODELS = [
-  { label: "claude", value: "claude" },
-  { label: "gpt-4o-mini", value: "gpt-4o-mini" },
-  { label: "llama-3.1-8b", value: "llama-3.1-8b" },
-];
+const PRICE_LADDER = [0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05].map((v) =>
+  Math.round(v * LAMPORTS),
+);
 
-const PRICES = [0.002, 0.005, 0.01, 0.025, 0.05].map((v) => ({
-  label: `${v.toFixed(3)} SOL`,
-  value: String(Math.round(v * LAMPORTS)),
-}));
+/**
+ * The price ladder, with the chosen model's own price folded in and marked.
+ *
+ * Picking a model moves the price to that model's catalog rate, but the rate is
+ * a suggestion: a requester who wants to outbid the floor, or undercut it and
+ * wait, edits it here. The model's own rate is always offered so getting back
+ * to it never needs a guess.
+ */
+const priceOptions = (modelPrice: number) =>
+  [...new Set([modelPrice, ...PRICE_LADDER])]
+    .sort((a, b) => a - b)
+    .map((lam) => ({
+      label: `${solText(lam)} SOL${lam === modelPrice ? " · model" : ""}`,
+      value: String(lam),
+    }));
 
 const DEADLINES = [10, 30, 60, 240].map((v) => ({
   label: v >= 60 ? `${v / 60} h` : `${v} min`,
@@ -134,9 +145,14 @@ export function Chat({ market }: { market: Market }) {
     return () => window.clearTimeout(id);
   }, [autoOn, convId, autoTargetId, actionEscrow.funded]);
 
-  const price = active?.priceLamports ?? 10_000_000;
+  const price = active?.priceLamports ?? DEFAULT_PRICE_LAMPORTS;
   const minutes = active?.minutes ?? 30;
-  const model = active?.model ?? "claude";
+  const model = active?.model ?? DEFAULT_MODEL_ID;
+  const spec = modelById(model);
+  // A model the catalog no longer lists has no rate to compare against, so its
+  // price is whatever the conversation stored, and never "custom".
+  const modelPrice = spec ? priceLamports(spec) : price;
+  const customPrice = price !== modelPrice;
 
   return (
     <div className="chat">
@@ -208,11 +224,15 @@ export function Chat({ market }: { market: Market }) {
         <div className="rail-card">
           <div className="rail-row">
             <span>Model</span>
-            <span className="mono">{model}</span>
+            <span className="mono" title={model}>
+              {spec?.name ?? model}
+            </span>
           </div>
           <div className="rail-row">
             <span>Per message</span>
-            <span className="mono">{(price / LAMPORTS).toFixed(3)} SOL</span>
+            <span className="mono">
+              {solText(price)} SOL{customPrice ? " · custom" : ""}
+            </span>
           </div>
           <div className="rail-row">
             <span id="auto-label">Auto-approve on read</span>
@@ -335,21 +355,24 @@ export function Chat({ market }: { market: Market }) {
             </div>
 
             <div className="composer-bar">
-              <PillMenu
-                name="Model"
-                label={model}
+              <ModelPicker
                 value={model}
-                options={MODELS}
-                onChange={(v) => {
+                onChange={(id) => {
                   const conv = active ?? chat.startConversation();
-                  chat.setSettings(conv.id, { model: v });
+                  const picked = modelById(id);
+                  // Choosing a model sets its price too, so the pair the job is
+                  // posted with is the one the picker showed.
+                  chat.setSettings(conv.id, {
+                    model: id,
+                    ...(picked ? { priceLamports: priceLamports(picked) } : {}),
+                  });
                 }}
               />
               <PillMenu
                 name="Price per message"
-                label={`${(price / LAMPORTS).toFixed(3)} SOL`}
+                label={`${solText(price)} SOL${customPrice ? " · custom" : ""}`}
                 value={String(price)}
-                options={PRICES}
+                options={priceOptions(modelPrice)}
                 onChange={(v) => {
                   const conv = active ?? chat.startConversation();
                   chat.setSettings(conv.id, { priceLamports: Number(v) });

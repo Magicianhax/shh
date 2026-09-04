@@ -561,78 +561,189 @@ textarea:focus {
   box-shadow: 0 1px 0 oklch(100% 0 0) inset, 0 30px 60px -40px oklch(40% 0.03 175);
 }
 
-.schematic {
-  position: relative;
-  padding: 44px 40px;
-}
+/* --- hero: the same message, twice --------------------------------------- */
 
-.schematic-row {
+/*
+   Two panels sharing one hairline: the ledger's view on the left, the
+   conversation's on the right. The chain column is capped at the width its
+   longest mono row actually needs rather than the artboard's 296px, because
+   this hero's right column is narrower than the artboard's and the difference
+   would otherwise all come out of the reply.
+*/
+.views {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  align-items: start;
+  grid-template-columns: minmax(0, 276px) 1px minmax(0, 1fr);
+  align-items: stretch;
 }
 
-.schematic-row > svg {
-  position: absolute;
-  left: 0;
-  top: 34px;
-  width: 100%;
-  height: 20px;
-}
-
-.node {
+.views-chain {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  text-align: center;
+  min-width: 0;
+  min-height: 340px;
+  padding: 22px 22px 20px;
+  border-radius: 22px 0 0 22px;
+  background: var(--ink);
+  color: oklch(92% 0.006 80);
 }
 
-.node-box {
-  position: relative;
+.views-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: oklch(70% 0.06 175);
+}
+
+.views-label.acc {
+  color: var(--acc-deep);
+}
+
+.views-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin: 18px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.views-row {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.views-row dt {
+  flex: none;
   width: 68px;
-  height: 68px;
-  border-radius: 20px;
-  background: oklch(96% 0.01 80);
+  color: var(--faint);
+}
+
+.views-row dd {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.views-hash {
+  color: oklch(80% 0.05 175);
+}
+
+.views-rule {
+  height: 1px;
+  margin: 6px 0;
+  background: oklch(32% 0.012 60);
+}
+
+.views-status {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 7px;
 }
 
-.node-box.acc {
-  background: var(--acc);
+.views-status i {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: oklch(70% 0.12 160);
 }
 
-.node-ring {
+.views-foot {
+  margin-top: auto;
+  padding-top: 18px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: oklch(62% 0.01 60);
+}
+
+/* The seam. Its label is the whole point of the block, so it sits on the line. */
+.views-divider {
+  position: relative;
+  background: var(--hair-4);
+}
+
+.views-divider span {
   position: absolute;
-  inset: -8px;
-  border-radius: 26px;
-  border: 1.5px solid var(--acc);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-90deg);
+  padding: 4px 8px;
+  background: var(--canvas);
+  white-space: nowrap;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: oklch(50% 0.04 175);
 }
 
-.node b {
-  font-weight: 600;
-  font-size: 15px;
+.views-parties {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding: 22px 24px 20px;
+  border: 1px solid var(--hair);
+  border-left: 0;
+  border-radius: 0 22px 22px 0;
+  background: var(--s1);
 }
 
-.node span {
-  font-size: 13px;
-  color: var(--muted);
-  line-height: 1.4;
+.views-said {
+  align-self: flex-end;
+  max-width: 300px;
+  padding: 12px 14px;
+  border-radius: 16px 16px 4px 16px;
+  background: var(--s3);
+  font-size: 14px;
+  line-height: 1.5;
 }
 
-.settled-strip {
-  margin-top: 36px;
+.views-reply {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.views-seal {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: var(--acc);
+  color: oklch(99% 0.005 80);
+}
+
+.views-settled {
+  margin-top: auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  flex-wrap: wrap;
-  padding: 16px 18px;
-  border-radius: 16px;
-  background: var(--s3);
+  padding-top: 14px;
+  border-top: 1px solid var(--hair);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.views-settled span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.views-settled svg {
+  color: var(--acc-deep);
 }
 
 .proof {
@@ -1410,6 +1521,110 @@ textarea:focus {
   cursor: default;
 }
 
+/* --- model picker -------------------------------------------------------- */
+
+.picker {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 20;
+  width: 292px;
+  max-width: calc(100vw - 40px);
+  max-height: min(56vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--s1);
+  border: 1px solid var(--hair-2);
+  box-shadow: 0 18px 40px -26px oklch(40% 0.03 175);
+}
+
+.picker-group + .picker-group {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--hair);
+}
+
+.picker-group h5 {
+  margin: 0;
+  padding: 8px 10px 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--acc-deep);
+}
+
+.picker-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 120ms var(--ease);
+}
+
+.picker-row:hover {
+  background: var(--s2);
+}
+
+.picker-row[aria-selected="true"] {
+  background: var(--s3);
+}
+
+.picker-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.picker-price {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.picker-note {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+/* Tier reads as a quiet stamp, not a second price. */
+.tier {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--s4);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-style: normal;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tier-default {
+  background: var(--acc-soft);
+  color: var(--acc-deep);
+}
+
 .ctx {
   font-family: var(--mono);
   font-size: 12px;
@@ -1967,14 +2182,36 @@ textarea:focus {
     font-size: 17px;
   }
 
-  .schematic {
-    padding: 28px 20px;
+  /* One column under the other, and the seam turns into a plain rule. */
+  .views {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .node-box {
-    width: 54px;
-    height: 54px;
-    border-radius: 16px;
+  .views-chain {
+    min-height: 0;
+    border-radius: 22px 22px 0 0;
+  }
+
+  .views-divider {
+    height: 1px;
+  }
+
+  .views-divider span {
+    transform: translate(-50%, -50%);
+  }
+
+  .views-parties {
+    border-left: 1px solid var(--hair);
+    border-top: 0;
+    border-radius: 0 0 22px 22px;
+  }
+
+  .views-said {
+    max-width: 100%;
+  }
+
+  .views-settled {
+    flex-wrap: wrap;
   }
 
   .proof {

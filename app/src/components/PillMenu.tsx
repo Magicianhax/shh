@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import { useDismiss } from "../hooks/useDismiss";
 
 export type PillOption = { label: string; value: string };
 
@@ -19,22 +20,8 @@ type Props = {
 export function PillMenu({ label, value, options, onChange, name, disabled }: Props) {
   const [open, setOpen] = useState(false);
   const host = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (!host.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  const close = useCallback(() => setOpen(false), []);
+  useDismiss(open, host, close);
 
   return (
     <div ref={host} style={{ position: "relative" }}>

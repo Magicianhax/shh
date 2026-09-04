@@ -1,4 +1,4 @@
-import { ArrowIcon, CheckIcon, GlobeIcon, LockIcon, Mark, ServerIcon, UserIcon } from "../components/icons";
+import { ArrowIcon, CheckIcon, GlobeIcon, LockIcon, Mark } from "../components/icons";
 import { Link } from "../router";
 import { useLastStepMs, msText } from "../lib/latency";
 
@@ -82,61 +82,76 @@ export function Landing() {
             </div>
           </div>
 
-          <div className="card schematic rise d3">
-            <div className="schematic-row">
-              <svg viewBox="0 0 560 20" fill="none" preserveAspectRatio="none" aria-hidden="true">
-                <path className="path" d="M110 10 H240" stroke="var(--acc)" strokeWidth="2" />
-                <path className="path" d="M330 10 H450" stroke="var(--acc)" strokeWidth="2" />
-              </svg>
-
-              <div className="node">
-                <span className="node-box" style={{ color: "oklch(30% 0.012 60)" }}>
-                  <UserIcon />
-                </span>
-                <b>You</b>
-                <span>
-                  Write the prompt,
-                  <br />
-                  fund the escrow
-                </span>
-              </div>
-
-              <div className="node">
-                <span className="node-box acc" style={{ color: "oklch(99% 0.005 80)" }}>
-                  <i className="node-ring pulse" />
-                  <LockIcon size={26} />
-                </span>
-                <b>Sealed rollup</b>
-                <span>
-                  TEE-backed,
-                  <br />
-                  {ms !== null ? `~${msText(ms)} per step` : "measured per step"}
-                </span>
-              </div>
-
-              <div className="node">
-                <span className="node-box" style={{ color: "oklch(30% 0.012 60)" }}>
-                  <ServerIcon />
-                </span>
-                <b>Provider</b>
-                <span>
-                  Runs the model,
-                  <br />
-                  never leaks the prompt
-                </span>
-              </div>
+          {/* The same message, twice: what the chain sees, what the two parties see. */}
+          <div className="views rise d3">
+            <div className="views-chain">
+              <div className="views-label">What Solana sees</div>
+              <dl className="views-rows mono">
+                <div className="views-row">
+                  <dt>job</dt>
+                  <dd>7pgz…9WW3</dd>
+                </div>
+                <div className="views-row">
+                  <dt>requester</dt>
+                  <dd>5GD6…hkjV</dd>
+                </div>
+                <div className="views-row">
+                  <dt>provider</dt>
+                  <dd>9hE2…kLmQ</dd>
+                </div>
+                <div className="views-rule" />
+                <div className="views-row">
+                  <dt>prompt</dt>
+                  <dd className="views-hash">sha256 a91f4c…c04e</dd>
+                </div>
+                <div className="views-row">
+                  <dt>output</dt>
+                  <dd className="views-hash">sha256 5be31a…77a0</dd>
+                </div>
+                <div className="views-rule" />
+                <div className="views-row">
+                  <dt>escrow</dt>
+                  <dd>0.010 SOL → provider</dd>
+                </div>
+                <div className="views-row">
+                  <dt>status</dt>
+                  <dd className="views-status">
+                    <i />
+                    settled · 1 tx
+                  </dd>
+                </div>
+              </dl>
+              <p className="views-foot">
+                Hashes, amounts, and status. Not one word of the exchange.
+              </p>
             </div>
 
-            <div className="settled-strip">
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
-                <span style={{ color: "var(--acc-deep)", display: "inline-flex" }}>
-                  <CheckIcon size={20} />
+            <div className="views-divider">
+              <span className="mono">only hashes cross</span>
+            </div>
+
+            <div className="views-parties">
+              <div className="views-label acc">What you and your provider see</div>
+              <p className="views-said">
+                Summarize the Q3 trial notes into five bullet points. Keep dosage numbers exact.
+              </p>
+              <div className="views-reply">
+                <span className="views-seal">
+                  <LockIcon size={12} />
                 </span>
-                <span style={{ fontSize: 14, fontWeight: 500 }}>Approved · settled on Solana</span>
-              </span>
-              <span className="mono" style={{ fontSize: 13, color: "oklch(45% 0.012 60)" }}>
-                0.010 SOL → provider
-              </span>
+                <p>
+                  Enrollment reached 412 of 450 by week 11. Mean dose 150 mg held; two deviations at
+                  125 mg. Three grade-2 adverse events, all resolved. Endpoint trending 18% above
+                  placebo. Continue without amendment.
+                </p>
+              </div>
+              <div className="views-settled">
+                <span>
+                  <CheckIcon size={13} />
+                  Approved · paid 0.010 SOL
+                </span>
+                <span className="mono">3.8 s</span>
+              </div>
             </div>
           </div>
         </div>
@@ -247,8 +262,9 @@ export function Landing() {
                 color: "oklch(45% 0.012 60)",
               }}
             >
-              Run the worker with an OpenAI or Anthropic key, register your label, and claim open
-              jobs. Payouts land in your wallet the moment a requester approves.
+              Run the worker with an OpenAI, Anthropic, or Ollama backend and it serves every model
+              that backend offers. You set a price floor per model, so jobs priced under it stay
+              open for someone else. Payouts land in your wallet the moment a requester approves.
             </p>
             <Link to="/provider" className="arrow" style={{ marginTop: 6 }}>
               Open the provider dashboard
