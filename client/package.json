@@ -1,0 +1,18 @@
+{
+  "name": "@inference-market/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "tsx --test src/__tests__/*.test.ts"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "0.32.1",
+    "@magicblock-labs/ephemeral-rollups-sdk": "0.15.5",
+    "@solana/web3.js": "^1.98.0",
+    "@noble/hashes": "^1.5.0",
+    "bs58": "^6.0.0"
+  }
+}

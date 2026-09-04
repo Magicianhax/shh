@@ -5,7 +5,8 @@
   "workspaces": ["client", "worker", "app"],
   "scripts": {
     "test:local": "anchor test",
-    "test:devnet": "tsx tests/devnet/e2e.ts"
+    "test:devnet": "tsx tests/devnet/e2e.ts",
+    "idl:sync": "cp target/idl/inference_market.json client/src/idl/inference_market.json"
   },
   "devDependencies": {
     "@coral-xyz/anchor": "0.32.1",
