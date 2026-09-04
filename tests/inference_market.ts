@@ -95,3 +95,31 @@ test("delegate_job and delegate_job_private lock both PDAs under the delegation 
   assert.equal(jobInfo!.owner.toBase58(), DELEGATION_PROGRAM_ID.toBase58());
   assert.equal(jpInfo!.owner.toBase58(), DELEGATION_PROGRAM_ID.toBase58());
 });
+
+test("settle_direct refuses a non-terminal, undelegated job", async () => {
+  const nonce = 3n;
+  const job = jobPda(wallet.publicKey, nonce);
+  await program.methods.createJob(new anchor.BN(3), new anchor.BN(1000), new anchor.BN(Math.floor(Date.now()/1000)+3600), label("x"))
+    .accounts({ requester: wallet.publicKey, job, jobPrivate: jobPrivatePda(job), escrow: escrowPda(job), systemProgram: SystemProgram.programId }).rpc();
+  await assert.rejects(
+    program.methods.settleDirect().accounts({
+      payer: wallet.publicKey, jobEscrow: escrowPda(job), job,
+      providerAccount: wallet.publicKey, requesterWallet: wallet.publicKey, providerWallet: wallet.publicKey,
+    }).rpc(), /NotTerminal/);
+});
+
+test("settle_direct refuses a delegated job", async () => {
+  const job = jobPda(wallet.publicKey, 1n); // delegated in the earlier test
+  await assert.rejects(
+    program.methods.settleDirect().accounts({
+      payer: wallet.publicKey, jobEscrow: escrowPda(job), job,
+      providerAccount: wallet.publicKey, requesterWallet: wallet.publicKey, providerWallet: wallet.publicKey,
+    }).rpc(), /JobStillDelegated/);
+});
+
+test("close_job refuses an unpaid escrow", async () => {
+  const job = jobPda(wallet.publicKey, 3n);
+  await assert.rejects(
+    program.methods.closeJob().accounts({ requester: wallet.publicKey, job, jobPrivate: jobPrivatePda(job), jobEscrow: escrowPda(job) }).rpc(),
+    /NotTerminal|NotPaid/);
+});

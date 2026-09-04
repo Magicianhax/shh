@@ -57,4 +57,28 @@ pub mod inference_market {
     pub fn finalize_output(ctx: Context<OutputCtx>, len: u16) -> Result<()> {
         instructions::output::finalize_output(ctx, len)
     }
+
+    pub fn approve_job(ctx: Context<FinishJob>, schedule_action: bool) -> Result<()> {
+        instructions::finish::run(ctx, state::JobStatus::Approved, schedule_action)
+    }
+    pub fn reject_job(ctx: Context<FinishJob>, schedule_action: bool) -> Result<()> {
+        instructions::finish::run(ctx, state::JobStatus::Rejected, schedule_action)
+    }
+    pub fn cancel_job(ctx: Context<FinishJob>, schedule_action: bool) -> Result<()> {
+        instructions::finish::run(ctx, state::JobStatus::Cancelled, schedule_action)
+    }
+    pub fn expire_job(ctx: Context<FinishJob>, schedule_action: bool) -> Result<()> {
+        instructions::finish::run(ctx, state::JobStatus::Expired, schedule_action)
+    }
+
+    pub fn settle_action(ctx: Context<SettleAction>) -> Result<()> {
+        instructions::settle::settle_action(ctx)
+    }
+    pub fn settle_direct(ctx: Context<SettleDirect>) -> Result<()> {
+        instructions::settle::settle_direct(ctx)
+    }
+
+    pub fn close_job(ctx: Context<CloseJob>) -> Result<()> {
+        instructions::close_job::handler(ctx)
+    }
 }
