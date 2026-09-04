@@ -5,7 +5,7 @@ Spec: docs/superpowers/specs/2026-09-04-private-inference-network-design.md
 
 - [x] Task 0 toolchain + repo init
 - [x] Task 1 Anchor workspace + state
-- [ ] Task 2 pure logic + cargo tests
+- [x] Task 2 pure logic + cargo tests
 - [ ] Task 3 register_provider + create_job
 - [ ] Task 4 delegate instructions
 - [ ] Task 5 ER instructions (permissions, prompt, claim, output)
