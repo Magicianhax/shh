@@ -203,6 +203,57 @@ async function escrowDeltaIn(
 }
 
 /**
+ * Wait for a scheduled action to pay the escrow out.
+ *
+ * Scheduling is not completion, and the committor may land the action in a
+ * transaction after the one that undelegates. Poll briefly before concluding the
+ * action did not run, otherwise the fallback races it and the result is
+ * ambiguous.
+ */
+async function waitForEscrowPaid(
+  program: any,
+  escrow: PublicKey,
+  timeoutMs = 45_000,
+): Promise<{ paid: boolean; waitedMs: number }> {
+  const start = Date.now();
+  for (;;) {
+    const e: any = await program.account.escrow.fetch(escrow);
+    if (e.paid) return { paid: true, waitedMs: Date.now() - start };
+    if (Date.now() - start >= timeoutMs) return { paid: false, waitedMs: Date.now() - start };
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+}
+
+/**
+ * The base transaction in which the escrow lost lamports, i.e. the one that
+ * actually paid the job out.
+ */
+async function findEscrowDebit(
+  base: Connection,
+  escrow: PublicKey,
+): Promise<{ signature: string; delta: number } | null> {
+  const sigs = await base.getSignaturesForAddress(escrow, { limit: 20 }, "confirmed");
+  for (const s of sigs.slice().reverse()) {
+    if (s.err) continue;
+    const tx = await base.getTransaction(s.signature, {
+      commitment: "confirmed",
+      maxSupportedTransactionVersion: 0,
+    });
+    if (!tx?.meta) continue;
+    const keys: PublicKey[] = [
+      ...tx.transaction.message.staticAccountKeys,
+      ...(tx.meta.loadedAddresses?.writable ?? []),
+      ...(tx.meta.loadedAddresses?.readonly ?? []),
+    ];
+    const idx = keys.findIndex((k) => k.equals(escrow));
+    if (idx < 0) continue;
+    const delta = tx.meta.postBalances[idx] - tx.meta.preBalances[idx];
+    if (delta < 0) return { signature: s.signature, delta };
+  }
+  return null;
+}
+
+/**
  * Find a base transaction that touched `escrow` and failed inside
  * `inference_market`. The committor attaches a scheduled action to the same base
  * transaction as the commit; if the action's instruction fails, that whole
@@ -404,22 +455,27 @@ async function main() {
   step("settlement");
   const escrowKey = escrowPda(job);
   const commitTx = await escrowDeltaIn(base, commitSig, escrowKey);
+  const observed = await waitForEscrowPaid(baseReq, escrowKey);
   let escrow: any = await baseReq.account.escrow.fetch(escrowKey);
-  const actionPaid = escrow.paid === true;
+  const actionPaid = observed.paid;
   let settlementPath: "magic-action" | "settle_direct-fallback";
   if (actionPaid) {
-    // The action settled atomically with the commit. Assert it here, before any
-    // fallback could mask it, so a regression to the fallback fails the run.
+    // The action settled the escrow. Assert it here, before the fallback could
+    // run at all, so a regression back to the fallback fails the run.
     settlementPath = "magic-action";
     assert.equal(escrow.paid, true, "action path must leave the escrow paid");
-    console.log("SETTLEMENT PATH: scheduled Magic Action (escrow.paid already true)");
+    console.log(
+      `SETTLEMENT PATH: scheduled Magic Action (escrow.paid true after ${observed.waitedMs}ms, ` +
+        `no settle_direct sent)`,
+    );
   } else {
     settlementPath = "settle_direct-fallback";
     console.log(
-      "\n!!! SETTLEMENT PATH: FALLBACK. The scheduled Magic Action did NOT pay out.\n" +
-        "!!! Every approve is settling through settle_direct. A controller that assumes\n" +
-        "!!! the action pays will be wrong. See the PARKED (c) lines below for the\n" +
-        "!!! failed base transaction and its inner settle_action error.\n",
+      `\n!!! SETTLEMENT PATH: FALLBACK. The scheduled Magic Action did NOT pay out\n` +
+        `!!! within ${observed.waitedMs}ms of undelegation. Every approve is settling\n` +
+        "!!! through settle_direct. A controller that assumes the action pays will be\n" +
+        "!!! wrong. See the PARKED (c) lines below for the failed base transaction and\n" +
+        "!!! its inner settle_action error.\n",
     );
     const directSig = await settleDirect(baseProv, providerKp.publicKey, job);
     console.log("settle_direct (base)", directSig);
@@ -485,6 +541,17 @@ async function main() {
     }, err ${JSON.stringify(commitTx.err)}, escrow lamport delta in that tx ${
       commitTx.delta === null ? "escrow not in tx" : commitTx.delta
     }, inference_market invoked in that tx: ${commitTx.invokedProgram}`,
+  );
+  const debit = await findEscrowDebit(base, escrowKey);
+  console.log(
+    debit === null
+      ? "PARKED (c) no base transaction debited the escrow (unexpected)"
+      : `PARKED (c) escrow was debited ${debit.delta} lamports in ${debit.signature}, ` +
+          `which is ${
+            debit.signature === commitSig
+              ? "THE COMMITMENT TRANSACTION ITSELF"
+              : "a SEPARATE base transaction from the commitment"
+          }`,
   );
   if (settlementPath !== "magic-action") {
     const attempt = await findFailedActionAttempt(base, escrowKey);
