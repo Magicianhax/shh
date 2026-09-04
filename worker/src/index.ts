@@ -62,9 +62,10 @@ async function main() {
   );
 
   if (!(await base.getAccountInfo(providerPda(cfg.keypair.publicKey)))) {
-    await registerProvider(baseProgram, cfg.keypair.publicKey, cfg.modelLabel);
+    await registerProvider(baseProgram, cfg.keypair.publicKey, cfg.registerLabel);
     log("registered provider");
   }
+  log("serving models", { models: cfg.served.size, provider: cfg.provider });
 
   const mine = new Set<string>();
   try {
@@ -81,15 +82,21 @@ async function main() {
 
   for (;;) {
     try {
-      for (const job of await findClaimable(er, cfg.modelLabel, cfg.minTimeLeftS)) {
+      const { jobs } = await findClaimable(er, cfg.served, cfg.minTimeLeftS);
+      for (const { job, modelId } of jobs) {
+        // Present because `findClaimable` only returns served models.
+        const model = cfg.served.get(modelId)!;
         try {
           await claimJob(er, cfg.keypair.publicKey, job);
         } catch {
           continue; // raced by another provider
         }
-        log("claimed", { job: job.toBase58() });
+        log("claimed", { job: job.toBase58(), model: modelId });
         const { prompt } = await readPrivate(er, job);
-        const out = await runInference(new TextDecoder().decode(prompt), cfg.inference);
+        const out = await runInference(new TextDecoder().decode(prompt), {
+          ...cfg.inference,
+          model: model.backendModel,
+        });
         await submitOutput(er, cfg.keypair.publicKey, job, out);
         log("submitted", { job: job.toBase58(), bytes: out.length });
         mine.add(job.toBase58());

@@ -223,20 +223,27 @@ Run the provider worker, after copying `worker/.env.example` to `worker/.env`
 and filling in a funded keypair path and an inference API key. `INFERENCE_PROVIDER`
 selects the backend:
 
-- `anthropic` — `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`.
-- `openai` — `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_BASE_URL`.
-- `ollama` — `OLLAMA_MODEL` (default `llama3.2:1b`), `OLLAMA_BASE_URL` (default
-  `http://127.0.0.1:11434/v1`). No API key is needed since Ollama serves
-  locally with no auth. Install and pull a model first:
+- `anthropic` — `ANTHROPIC_API_KEY`.
+- `openai` — `OPENAI_API_KEY`, `OPENAI_BASE_URL`.
+- `ollama` — `OLLAMA_BASE_URL` (default `http://127.0.0.1:11434/v1`). No API key
+  is needed since Ollama serves locally with no auth. Install and pull a model
+  first:
 
   ```bash
   curl -fsSL https://ollama.com/install.sh | sh
-  ollama pull llama3.2:1b
+  ollama pull llama3.1:8b
   ```
 
-Whichever backend you pick, set `MODEL_LABEL` to whatever requesters must put
-in a job's model label for this worker to claim it — the two must match
-exactly.
+The worker serves every model of its provider listed in the shared catalog
+(`client/src/models.ts`), matching a job's model label against the catalog id
+the requester chose. Three optional variables narrow that:
+
+- `MODELS` — comma-separated catalog ids to serve. Unset means all of them.
+- `PRICE_FLOOR_MULTIPLIER` — the floor is the catalog's suggested price times
+  this, per model, and jobs priced under it are left open for someone cheaper.
+  Defaults to `1.0`.
+- `MODEL_MAP` — JSON from catalog id to backend model id, for when the backend
+  calls a model something else (a pinned Ollama tag, a renamed hosted model).
 
 ```bash
 npm --workspace worker start
