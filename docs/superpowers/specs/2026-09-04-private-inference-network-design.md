@@ -348,3 +348,9 @@ tasks/todo.md                      implementation plan (next step)
   accent, Bricolage Grotesque display, Instrument Sans body, JetBrains Mono data. Routes: / landing,
   /chat (default), /jobs (ledger + detail), /provider.
 - Product name: Shh (user, 2026-09-04); slogan: The chain sees the money, never the words.
+- Model catalog and per-model pricing (user, 2026-09-04): the job `model_label` carries the exact model id.
+  A shared catalog in the client lists models per provider with a tier (lower / default / higher) and a
+  suggested price per message; defaults are Claude Opus 5, GPT mid-tier, and an Ollama mid-size model.
+  The composer sets the job price from the catalog (editable). The worker serves every catalog model of
+  its provider and refuses to claim a job priced below its floor for that model. Landing hero replaced by
+  the "same message, two views" block (what Solana sees vs what the parties see).
