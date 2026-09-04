@@ -202,6 +202,35 @@ async function escrowDeltaIn(
   };
 }
 
+/**
+ * Find a base transaction that touched `escrow` and failed inside
+ * `inference_market`. The committor attaches a scheduled action to the same base
+ * transaction as the commit; if the action's instruction fails, that whole
+ * transaction is rejected, the committor drops the action and retries the commit
+ * alone. The failed attempt is the only place the action's error is visible.
+ */
+async function findFailedActionAttempt(
+  base: Connection,
+  escrow: PublicKey,
+): Promise<{ signature: string; err: unknown; programLogs: string[] } | null> {
+  const sigs = await base.getSignaturesForAddress(escrow, { limit: 20 }, "confirmed");
+  for (const s of sigs) {
+    if (!s.err) continue;
+    const tx = await base.getTransaction(s.signature, {
+      commitment: "confirmed",
+      maxSupportedTransactionVersion: 0,
+    });
+    const logs = tx?.meta?.logMessages ?? [];
+    const mine = logs.filter(
+      (l) =>
+        l.startsWith("Program log:") ||
+        l.startsWith(`Program ${PROGRAM_ID.toBase58()} failed`),
+    );
+    return { signature: s.signature, err: s.err, programLogs: mine };
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 
 async function main() {
@@ -341,30 +370,6 @@ async function main() {
   await assert.rejects(readPrivate(teeOut, job), /./, "outsider read after submit must fail");
   console.log("outsider read after submit still rejected");
 
-  // BLOCKED HERE — 2026-09-04, devnet TEE, program HWeUskL1BSdZid4xsbSMBeZ4YH4FsTiYpdXDFZKzyBoe.
-  //
-  // Every terminal instruction (`approve_job` / `reject_job` / `cancel_job` /
-  // `expire_job` all go through `instructions::finish::run`) fails on the ER with
-  //   InstructionError[0] = ExternalAccountDataModified
-  //   "instruction modified data of an account it does not own"
-  // The handler itself runs to completion: both permission closes succeed and the
-  // Magic program logs "Scheduling undelegation for accounts: <job>, <job_private>".
-  // The error comes from the runtime's post-instruction account verification.
-  //
-  // Cause: `finish::run` sets `job.status` on Anchor's cached `Account<'info, Job>`,
-  // which is only written back by Anchor's generated `exit` AFTER the handler
-  // returns. By then `commit_and_undelegate` has reassigned `job` to the delegation
-  // program, so that write is a modification of a non-owned account. `job_private`
-  // is a zero-copy `AccountLoader`, written in place before the CPI, so it is fine.
-  //
-  // Fix requires a program change plus a redeploy (controller decision): serialize
-  // the job before the intent bundle, e.g. `ctx.accounts.job.exit(&crate::ID)?;`
-  // right after the transition block in `programs/inference_market/src/instructions/finish.rs`.
-  // Reproduced with schedule_action = true (5Wjyyp...) and false (ybdzrV...), so it
-  // is not specific to the Magic Action.
-  //
-  // Everything above this line passed on devnet. Delete this comment once the
-  // program is redeployed; the rest of the script is written to run through.
   step("approve with post-commit settle action");
   const providerBefore = await base.getBalance(providerKp.publicKey);
   let erSig = "";
@@ -473,6 +478,17 @@ async function main() {
       commitTx.delta === null ? "escrow not in tx" : commitTx.delta
     }, inference_market invoked in that tx: ${commitTx.invokedProgram}`,
   );
+  if (settlementPath !== "magic-action") {
+    const attempt = await findFailedActionAttempt(base, escrowKey);
+    console.log(
+      attempt === null
+        ? "PARKED (c) no failed base transaction found on the escrow; the action was " +
+            "never attempted"
+        : `PARKED (c) the action WAS attempted and failed: ${attempt.signature} ` +
+            `err ${JSON.stringify(attempt.err)}\n  ` +
+            attempt.programLogs.join("\n  "),
+    );
+  }
 
   step("close job 1");
   const closeSig = await closeJob(baseReq, requester.publicKey, job);
