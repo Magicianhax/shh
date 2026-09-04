@@ -1,0 +1,193 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; background: oklch(98.2% 0.006 80); color: oklch(22% 0.012 60); font-family: "Instrument Sans", "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: oklch(40% 0.07 175); text-decoration: none; } a:hover { color: oklch(32% 0.08 175); }
+    .display { font-family: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif; font-variation-settings: "opsz" 96; letter-spacing: -0.03em; }
+    .mono { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; }
+    .rise { opacity: 0; transform: translateY(10px); animation: rise 560ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+    .d1 { animation-delay: 60ms } .d2 { animation-delay: 140ms } .d3 { animation-delay: 220ms } .d4 { animation-delay: 300ms } .d5 { animation-delay: 380ms }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+    .path { stroke-dasharray: 6 8; animation: flow 1.6s linear infinite; }
+    @keyframes flow { to { stroke-dashoffset: -28; } }
+    .pulse { transform-origin: center; animation: pulse 2.4s ease-in-out infinite; }
+    @keyframes pulse { 0%, 100% { opacity: .55; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
+    @media (prefers-reduced-motion: reduce) { .rise { animation: none; opacity: 1; transform: none; } .path, .pulse { animation: none; } }
+  </style>
+</helmet>
+
+<div style="width: 1440px; min-height: 2560px; background: oklch(98.2% 0.006 80); position: relative; overflow: hidden;">
+
+  <!-- soft atmospheric wash, single and restrained -->
+  <div style="position: absolute; top: -220px; left: 50%; width: 1100px; height: 720px; transform: translateX(-50%); background: radial-gradient(ellipse at center, oklch(93% 0.035 175) 0%, oklch(98.2% 0.006 80) 68%); pointer-events: none;"></div>
+
+  <!-- nav -->
+  <div style="position: relative; display: flex; align-items: center; justify-content: space-between; padding: 28px 72px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><rect x="2" y="2" width="22" height="22" rx="6" stroke="oklch(22% 0.012 60)" stroke-width="1.8"/><path d="M8 13h10M13 8v10" stroke="oklch(22% 0.012 60)" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span style="font-weight: 600; font-size: 17px; letter-spacing: -0.01em;">Inference Market</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 36px; font-size: 15px; color: oklch(42% 0.012 60);">
+      <span>Product</span><span>Providers</span><span>Docs</span>
+      <span style="display: inline-flex; align-items: center; height: 42px; padding: 0 18px; border-radius: 999px; background: oklch(22% 0.012 60); color: oklch(98% 0.006 80); font-weight: 500;">Open app</span>
+    </div>
+  </div>
+
+  <!-- hero -->
+  <div style="position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 64px; align-items: center; padding: 104px 72px 88px;">
+    <div style="display: flex; flex-direction: column; gap: 28px;">
+      <div class="rise d1 mono" style="font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(45% 0.07 175);">Private inference · settled on Solana</div>
+      <h1 class="display rise d2" style="margin: 0; font-size: 84px; line-height: 0.98; font-weight: 500;">Ask anything.<br>Nobody reads it<br>but the model.</h1>
+      <p class="rise d3" style="margin: 0; max-width: 520px; font-size: 20px; line-height: 1.5; color: oklch(42% 0.012 60);">Your prompt is sealed inside a trusted rollup. A provider answers it there. You pay only when you approve, and the escrow settles on Solana in one transaction.</p>
+      <div class="rise d4" style="display: flex; align-items: center; gap: 28px; margin-top: 8px;">
+        <span style="display: inline-flex; align-items: center; height: 52px; padding: 0 24px; border-radius: 999px; background: oklch(58% 0.09 175); color: oklch(99% 0.005 80); font-weight: 600; font-size: 16px; box-shadow: 0 10px 30px -14px oklch(58% 0.09 175);">Post a private job</span>
+        <a href="#" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 500; font-size: 16px;">Run a provider node
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      </div>
+    </div>
+
+    <!-- schematic: the product mechanism, drawn -->
+    <div class="rise d3" style="position: relative; background: oklch(99.4% 0.004 80); border-radius: 28px; padding: 44px 40px; box-shadow: 0 1px 0 oklch(100% 0 0) inset, 0 30px 60px -40px oklch(40% 0.03 175); border: 1px solid oklch(93% 0.01 80);">
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; position: relative;">
+        <svg style="position: absolute; left: 0; top: 34px; width: 100%; height: 20px;" viewBox="0 0 560 20" fill="none" preserveAspectRatio="none">
+          <path class="path" d="M110 10 H240" stroke="oklch(58% 0.09 175)" stroke-width="2"/>
+          <path class="path" d="M330 10 H450" stroke="oklch(58% 0.09 175)" stroke-width="2"/>
+        </svg>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center;">
+          <div style="width: 68px; height: 68px; border-radius: 20px; background: oklch(96% 0.01 80); display: flex; align-items: center; justify-content: center;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="oklch(30% 0.012 60)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          </div>
+          <div style="font-weight: 600; font-size: 15px;">You</div>
+          <div style="font-size: 13px; color: oklch(50% 0.012 60); line-height: 1.4;">Write the prompt,<br>fund the escrow</div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center;">
+          <div style="width: 68px; height: 68px; border-radius: 20px; background: oklch(58% 0.09 175); display: flex; align-items: center; justify-content: center; position: relative;">
+            <span class="pulse" style="position: absolute; inset: -8px; border-radius: 26px; border: 1.5px solid oklch(58% 0.09 175);"></span>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="oklch(99% 0.005 80)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+          </div>
+          <div style="font-weight: 600; font-size: 15px;">Sealed rollup</div>
+          <div style="font-size: 13px; color: oklch(50% 0.012 60); line-height: 1.4;">TEE-backed,<br>~41 ms per step</div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center;">
+          <div style="width: 68px; height: 68px; border-radius: 20px; background: oklch(96% 0.01 80); display: flex; align-items: center; justify-content: center;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="oklch(30% 0.012 60)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 10h4M7 14h10"/></svg>
+          </div>
+          <div style="font-weight: 600; font-size: 15px;">Provider</div>
+          <div style="font-size: 13px; color: oklch(50% 0.012 60); line-height: 1.4;">Runs the model,<br>never leaks the prompt</div>
+        </div>
+      </div>
+      <div style="margin-top: 36px; display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-radius: 16px; background: oklch(96.5% 0.012 80);">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="oklch(45% 0.07 175)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+          <span style="font-size: 14px; font-weight: 500;">Approved · settled on Solana</span>
+        </div>
+        <span class="mono" style="font-size: 13px; color: oklch(45% 0.012 60);">0.010 SOL → provider</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- proof strip -->
+  <div class="rise d5" style="position: relative; margin: 0 72px; padding: 22px 0; border-top: 1px solid oklch(90% 0.01 80); border-bottom: 1px solid oklch(90% 0.01 80); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px;">
+    <div style="display: flex; flex-direction: column; gap: 6px;"><span class="display" style="font-size: 30px; font-weight: 500;">41 ms</span><span style="font-size: 13px; color: oklch(50% 0.012 60);">rollup step latency, measured</span></div>
+    <div style="display: flex; flex-direction: column; gap: 6px;"><span class="display" style="font-size: 30px; font-weight: 500;">SHA-256</span><span style="font-size: 13px; color: oklch(50% 0.012 60);">prompt and output committed on-chain</span></div>
+    <div style="display: flex; flex-direction: column; gap: 6px;"><span class="display" style="font-size: 30px; font-weight: 500;">1 tx</span><span style="font-size: 13px; color: oklch(50% 0.012 60);">approval, undelegation and payout together</span></div>
+    <div style="display: flex; flex-direction: column; gap: 6px;"><span class="display" style="font-size: 30px; font-weight: 500;">0 SOL</span><span style="font-size: 13px; color: oklch(50% 0.012 60);">paid if you reject</span></div>
+  </div>
+
+  <!-- how it works -->
+  <div style="position: relative; padding: 120px 72px 40px; display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 80px;">
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div class="mono" style="font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(45% 0.07 175);">How it works</div>
+      <h2 class="display" style="margin: 0; font-size: 44px; line-height: 1.05; font-weight: 500;">Four steps, one of them yours.</h2>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px 48px;">
+      <div style="display: flex; flex-direction: column; gap: 12px; padding-top: 18px; border-top: 1px solid oklch(88% 0.01 80);">
+        <span class="mono" style="font-size: 12px; color: oklch(50% 0.012 60);">01</span>
+        <span style="font-weight: 600; font-size: 18px;">Post</span>
+        <span style="font-size: 15px; line-height: 1.55; color: oklch(45% 0.012 60);">Write up to 4,096 bytes, set a price and a deadline. The prompt is written into the rollup behind a read permission only you hold.</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 12px; padding-top: 18px; border-top: 1px solid oklch(88% 0.01 80);">
+        <span class="mono" style="font-size: 12px; color: oklch(50% 0.012 60);">02</span>
+        <span style="font-weight: 600; font-size: 18px;">Claim</span>
+        <span style="font-size: 15px; line-height: 1.55; color: oklch(45% 0.012 60);">A provider claims the job. Only then is their wallet added to the permission list, and only then can they read the prompt.</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 12px; padding-top: 18px; border-top: 1px solid oklch(88% 0.01 80);">
+        <span class="mono" style="font-size: 12px; color: oklch(50% 0.012 60);">03</span>
+        <span style="font-weight: 600; font-size: 18px;">Answer</span>
+        <span style="font-size: 15px; line-height: 1.55; color: oklch(45% 0.012 60);">The output is written back into the same sealed account. Its hash is recorded so nobody can swap it later.</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 12px; padding-top: 18px; border-top: 1px solid oklch(88% 0.01 80);">
+        <span class="mono" style="font-size: 12px; color: oklch(50% 0.012 60);">04</span>
+        <span style="font-weight: 600; font-size: 18px;">Approve</span>
+        <span style="font-size: 15px; line-height: 1.55; color: oklch(45% 0.012 60);">You read the answer and approve. The prompt is wiped, the account leaves the rollup, and the escrow pays the provider in the same Solana transaction.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- what stays private -->
+  <div style="position: relative; padding: 120px 72px 40px; display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 80px; align-items: start;">
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div class="mono" style="font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(45% 0.07 175);">What stays private</div>
+      <h2 class="display" style="margin: 0; font-size: 44px; line-height: 1.05; font-weight: 500;">Public ledger, private words.</h2>
+      <p style="margin: 0; font-size: 15px; line-height: 1.55; color: oklch(45% 0.012 60);">Everything money-related is verifiable on Solana. Everything language-related never leaves the enclave in the clear.</p>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px;">
+      <div style="display: flex; flex-direction: column; gap: 0; border-radius: 20px; background: oklch(99.4% 0.004 80); border: 1px solid oklch(92% 0.01 80); overflow: hidden;">
+        <div style="padding: 18px 22px; border-bottom: 1px solid oklch(92% 0.01 80); display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>
+          Visible on Solana</div>
+        <div style="padding: 8px 22px 14px; display: flex; flex-direction: column;">
+          <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid oklch(94% 0.008 80); font-size: 14px;"><span>Price and escrow</span><span class="mono" style="color: oklch(50% 0.012 60);">0.010 SOL</span></div>
+          <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid oklch(94% 0.008 80); font-size: 14px;"><span>Job status</span><span class="mono" style="color: oklch(50% 0.012 60);">Submitted</span></div>
+          <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid oklch(94% 0.008 80); font-size: 14px;"><span>Prompt hash</span><span class="mono" style="color: oklch(50% 0.012 60);">a91f…c04e</span></div>
+          <div style="display: flex; justify-content: space-between; padding: 12px 0; font-size: 14px;"><span>Output hash</span><span class="mono" style="color: oklch(50% 0.012 60);">5be3…77a0</span></div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 0; border-radius: 20px; background: oklch(22% 0.012 60); color: oklch(96% 0.006 80); overflow: hidden;">
+        <div style="padding: 18px 22px; border-bottom: 1px solid oklch(32% 0.012 60); display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+          Sealed in the rollup</div>
+        <div style="padding: 8px 22px 14px; display: flex; flex-direction: column;">
+          <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid oklch(32% 0.012 60); font-size: 14px;"><span>Prompt text</span><span class="mono" style="color: oklch(70% 0.06 175);">you · provider</span></div>
+          <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid oklch(32% 0.012 60); font-size: 14px;"><span>Model output</span><span class="mono" style="color: oklch(70% 0.06 175);">you · provider</span></div>
+          <div style="display: flex; justify-content: space-between; padding: 12px 0; font-size: 14px;"><span>After approval</span><span class="mono" style="color: oklch(70% 0.06 175);">zeroed before commit</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- providers -->
+  <div style="position: relative; margin: 120px 72px 0; padding: 56px 64px; border-radius: 28px; background: oklch(96.5% 0.012 80); display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 64px; align-items: center;">
+    <div style="display: flex; flex-direction: column; gap: 18px;">
+      <div class="mono" style="font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(45% 0.07 175);">For providers</div>
+      <h2 class="display" style="margin: 0; font-size: 40px; line-height: 1.05; font-weight: 500;">Bring a model. Get paid on approval.</h2>
+      <p style="margin: 0; max-width: 560px; font-size: 16px; line-height: 1.55; color: oklch(45% 0.012 60);">Run the worker with an OpenAI or Anthropic key, register your label, and claim open jobs. Payouts land in your wallet the moment a requester approves.</p>
+      <a href="#" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 500; font-size: 16px; margin-top: 6px;">Read the provider guide
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 14px; padding: 24px; border-radius: 20px; background: oklch(99.4% 0.004 80); border: 1px solid oklch(92% 0.01 80);">
+      <div style="display: flex; justify-content: space-between; font-size: 14px;"><span style="color: oklch(50% 0.012 60);">Earned</span><span class="mono">0.912 SOL</span></div>
+      <div style="display: flex; justify-content: space-between; font-size: 14px;"><span style="color: oklch(50% 0.012 60);">Completed</span><span class="mono">128</span></div>
+      <div style="display: flex; justify-content: space-between; font-size: 14px;"><span style="color: oklch(50% 0.012 60);">Rejected</span><span class="mono">3</span></div>
+      <div style="height: 1px; background: oklch(92% 0.01 80); margin: 4px 0;"></div>
+      <div style="display: flex; justify-content: space-between; font-size: 14px;"><span style="color: oklch(50% 0.012 60);">Open now</span><span class="mono" style="color: oklch(45% 0.07 175);">6 jobs · claude</span></div>
+    </div>
+  </div>
+
+  <!-- footer -->
+  <div style="position: relative; display: flex; align-items: center; justify-content: space-between; padding: 72px 72px 48px; font-size: 13px; color: oklch(50% 0.012 60);">
+    <span>Inference Market · Solana devnet · MagicBlock TEE rollup</span>
+    <span class="mono">HWeU…yBoe</span>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

@@ -1,0 +1,172 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; background: oklch(98.2% 0.006 80); color: oklch(22% 0.012 60); font-family: "Instrument Sans", "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: oklch(40% 0.07 175); text-decoration: none; } a:hover { color: oklch(32% 0.08 175); }
+    .display { font-family: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif; font-variation-settings: "opsz" 96; letter-spacing: -0.03em; }
+    .mono { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; }
+    .blur { filter: blur(7px); user-select: none; }
+  </style>
+</helmet>
+
+<div style="width: 1440px; min-height: 1360px; background: oklch(98.2% 0.006 80);">
+
+  <!-- app nav -->
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 22px 56px; border-bottom: 1px solid oklch(91% 0.01 80);">
+    <div style="display: flex; align-items: center; gap: 36px;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <svg width="24" height="24" viewBox="0 0 26 26" fill="none"><rect x="2" y="2" width="22" height="22" rx="6" stroke="oklch(22% 0.012 60)" stroke-width="1.8"/><path d="M8 13h10M13 8v10" stroke="oklch(22% 0.012 60)" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <span style="font-weight: 600; font-size: 16px; letter-spacing: -0.01em;">Inference Market</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 999px; background: oklch(95% 0.008 80);">
+        <span style="display: inline-flex; align-items: center; height: 34px; padding: 0 16px; border-radius: 999px; background: oklch(99.4% 0.004 80); font-weight: 500; font-size: 14px; box-shadow: 0 1px 2px oklch(0% 0 0 / 0.06);">Requester</span>
+        <span style="display: inline-flex; align-items: center; height: 34px; padding: 0 16px; border-radius: 999px; font-size: 14px; color: oklch(48% 0.012 60);">Provider</span>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <span style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: oklch(45% 0.012 60);"><span style="width: 8px; height: 8px; border-radius: 999px; background: oklch(62% 0.13 160);"></span>TEE rollup live · 41 ms</span>
+      <span class="mono" style="display: inline-flex; align-items: center; height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid oklch(90% 0.01 80); font-size: 13px;">5GD6…hkjV · 6.69 SOL</span>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 520px minmax(0, 1fr); gap: 48px; padding: 44px 56px 80px; align-items: start;">
+
+    <!-- composer -->
+    <div style="display: flex; flex-direction: column; gap: 0; border-radius: 24px; background: oklch(99.4% 0.004 80); border: 1px solid oklch(92% 0.01 80); box-shadow: 0 24px 50px -40px oklch(40% 0.03 175); overflow: hidden; position: sticky; top: 24px;">
+      <div style="padding: 24px 26px 0; display: flex; flex-direction: column; gap: 6px;">
+        <h2 class="display" style="margin: 0; font-size: 28px; font-weight: 500; line-height: 1.1;">New private job</h2>
+        <span style="font-size: 14px; color: oklch(50% 0.012 60);">Sealed the moment it leaves your browser.</span>
+      </div>
+      <div style="padding: 20px 26px 0;">
+        <div style="min-height: 168px; padding: 16px 18px; border-radius: 16px; background: oklch(97% 0.008 80); font-size: 16px; line-height: 1.55; color: oklch(60% 0.01 60);">Summarize the attached Q3 trial notes into five bullet points. Keep dosage numbers exact and flag any adverse-event language.</div>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px;">
+          <div style="flex: 1; height: 3px; border-radius: 999px; background: oklch(92% 0.01 80); overflow: hidden; margin-right: 14px;"><div style="width: 36%; height: 100%; background: oklch(58% 0.09 175); border-radius: 999px;"></div></div>
+          <span class="mono" style="font-size: 12px; color: oklch(50% 0.012 60);">1,483 / 4,096 bytes</span>
+        </div>
+      </div>
+      <div style="padding: 22px 26px 0; display: flex; flex-direction: column; gap: 18px;">
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: oklch(50% 0.012 60);">Model</span>
+          <div style="display: flex; gap: 8px;">
+            <span style="display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border-radius: 999px; background: oklch(22% 0.012 60); color: oklch(98% 0.006 80); font-size: 14px; font-weight: 500;">claude</span>
+            <span style="display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid oklch(90% 0.01 80); font-size: 14px;">gpt-4o-mini</span>
+            <span style="display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid oklch(90% 0.01 80); font-size: 14px;">llama-3.1-8b</span>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;">
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: oklch(50% 0.012 60);">Price</span>
+            <div style="display: flex; align-items: center; justify-content: space-between; height: 46px; padding: 0 16px; border-radius: 14px; border: 1px solid oklch(90% 0.01 80);"><span class="mono" style="font-size: 15px;">0.010</span><span style="font-size: 13px; color: oklch(50% 0.012 60);">SOL</span></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: oklch(50% 0.012 60);">Deadline</span>
+            <div style="display: flex; align-items: center; justify-content: space-between; height: 46px; padding: 0 16px; border-radius: 14px; border: 1px solid oklch(90% 0.01 80);"><span class="mono" style="font-size: 15px;">30</span><span style="font-size: 13px; color: oklch(50% 0.012 60);">min</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="padding: 22px 26px 26px; display: flex; flex-direction: column; gap: 14px;">
+        <span style="display: inline-flex; align-items: center; justify-content: center; height: 52px; border-radius: 999px; background: oklch(58% 0.09 175); color: oklch(99% 0.005 80); font-weight: 600; font-size: 16px;">Publish privately · 0.010 SOL</span>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;">
+          <div style="display: flex; flex-direction: column; gap: 6px;"><div style="height: 4px; border-radius: 999px; background: oklch(58% 0.09 175);"></div><span class="mono" style="font-size: 11px; color: oklch(50% 0.012 60);">create · 420 ms</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px;"><div style="height: 4px; border-radius: 999px; background: oklch(58% 0.09 175);"></div><span class="mono" style="font-size: 11px; color: oklch(50% 0.012 60);">delegate · 1.9 s</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px;"><div style="height: 4px; border-radius: 999px; background: oklch(58% 0.09 175);"></div><span class="mono" style="font-size: 11px; color: oklch(50% 0.012 60);">permissions · 60 ms</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px;"><div style="height: 4px; border-radius: 999px; background: oklch(92% 0.01 80);"></div><span class="mono" style="font-size: 11px; color: oklch(50% 0.012 60);">prompt</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- jobs + detail -->
+    <div style="display: flex; flex-direction: column; gap: 28px;">
+      <div style="display: flex; align-items: baseline; justify-content: space-between;">
+        <h2 class="display" style="margin: 0; font-size: 28px; font-weight: 500;">Your jobs</h2>
+        <span style="font-size: 14px; color: oklch(50% 0.012 60);">4 total · 2 in progress</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <!-- selected row -->
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) 150px 220px 100px; gap: 20px; align-items: center; padding: 18px 22px; border-radius: 18px; background: oklch(99.4% 0.004 80); border: 1px solid oklch(85% 0.03 175); box-shadow: 0 12px 30px -24px oklch(40% 0.03 175);">
+          <div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-weight: 600; font-size: 15px;">Summarize the Q3 clinical trial notes</span><span class="mono" style="font-size: 12px; color: oklch(50% 0.012 60);">7pgz…9WW3 · claude</span></div>
+          <span class="mono" style="font-size: 13px;">0.010 SOL</span>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="flex: 1; height: 6px; border-radius: 999px; background: oklch(22% 0.012 60);"></span><span style="flex: 1; height: 6px; border-radius: 999px; background: oklch(22% 0.012 60);"></span><span style="flex: 1; height: 6px; border-radius: 999px; background: oklch(22% 0.012 60);"></span><span style="flex: 1; height: 6px; border-radius: 999px; background: oklch(58% 0.09 175);"></span><span style="flex: 1; height: 6px; border-radius: 999px; background: oklch(92% 0.01 80);"></span><span style="flex: 1; height: 6px; border-radius: 999px; background: oklch(92% 0.01 80);"></span>
+          </div>
+          <span style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: oklch(40% 0.07 175);"><span style="width: 7px; height: 7px; border-radius: 999px; background: oklch(58% 0.09 175);"></span>Submitted</span>
+        </div>
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) 150px 220px 100px; gap: 20px; align-items: center; padding: 18px 22px; border-radius: 18px; border: 1px solid oklch(92% 0.01 80);">
+          <div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-weight: 600; font-size: 15px;">Translate onboarding email to Brazilian Portuguese</span><span class="mono" style="font-size: 12px; color: oklch(50% 0.012 60);">6Xu8…ATpS · gpt-4o-mini</span></div>
+          <span class="mono" style="font-size: 13px;">0.005 SOL</span>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="flex: 1; height: 6px; border-radius: 999px; background: oklch(22% 0.012 60);"></span><span style="flex: 1; height: 6px; border-radius: 999px; background: oklch(22% 0.012 60);"></span><span style="flex: 1; height: 6px; border-radius: 999px; background: oklch(58% 0.09 175);"></span><span style="flex: 1; height: 6px; border-radius: 999px; background: oklch(92% 0.01 80);"></span><span style="flex: 1; height: 6px; border-radius: 999px; background: oklch(92% 0.01 80);"></span><span style="flex: 1; height: 6px; border-radius: 999px; background: oklch(92% 0.01 80);"></span>
+          </div>
+          <span style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: oklch(45% 0.012 60);"><span style="width: 7px; height: 7px; border-radius: 999px; background: oklch(75% 0.05 80);"></span>Claimed</span>
+        </div>
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) 150px 220px 100px; gap: 20px; align-items: center; padding: 18px 22px; border-radius: 18px; border: 1px solid oklch(92% 0.01 80);">
+          <div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-weight: 600; font-size: 15px;">Draft a rejection note for a vendor proposal</span><span class="mono" style="font-size: 12px; color: oklch(50% 0.012 60);">BimZ…7jqE · claude</span></div>
+          <span class="mono" style="font-size: 13px;">0.008 SOL</span>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="flex: 1; height: 6px; border-radius: 999px; background: oklch(22% 0.012 60);"></span><span style="flex: 1; height: 6px; border-radius: 999px; background: oklch(22% 0.012 60);"></span><span style="flex: 1; height: 6px; border-radius: 999px; background: oklch(22% 0.012 60);"></span><span style="flex: 1; height: 6px; border-radius: 999px; background: oklch(22% 0.012 60);"></span><span style="flex: 1; height: 6px; border-radius: 999px; background: oklch(22% 0.012 60);"></span><span style="flex: 1; height: 6px; border-radius: 999px; background: oklch(22% 0.012 60);"></span>
+          </div>
+          <span style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: oklch(45% 0.012 60);"><span style="width: 7px; height: 7px; border-radius: 999px; background: oklch(22% 0.012 60);"></span>Settled</span>
+        </div>
+      </div>
+
+      <!-- detail -->
+      <div style="display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 40px; padding: 30px 32px; border-radius: 24px; background: oklch(99.4% 0.004 80); border: 1px solid oklch(92% 0.01 80);">
+        <div style="display: flex; flex-direction: column; gap: 18px;">
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <h3 class="display" style="margin: 0; font-size: 26px; font-weight: 500; line-height: 1.15;">Summarize the Q3 clinical trial notes into 5 bullet points</h3>
+            <span class="mono" style="font-size: 12px; color: oklch(50% 0.012 60);">claimed by 9hE2…kLmQ · submitted 14:02:23</span>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;"><span style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: oklch(50% 0.012 60);">Output · 412 bytes</span><span class="mono" style="font-size: 12px; color: oklch(50% 0.012 60);">sha256 5be3…77a0</span></div>
+            <div style="position: relative; padding: 18px 20px; border-radius: 16px; background: oklch(97% 0.008 80); font-size: 15px; line-height: 1.6; min-height: 150px;">
+              <div class="blur">• Enrollment reached 412 of 450 target patients by week 11.<br>• Mean dose 150 mg maintained; two protocol deviations at 125 mg.<br>• Three grade-2 adverse events reported, all resolved without intervention.<br>• Primary endpoint trending 18% above placebo (interim).<br>• Recommend continuation without amendment.</div>
+              <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 14px;">
+                <span style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: oklch(45% 0.012 60);">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+                  Visible only to you and the provider</span>
+                <span style="display: inline-flex; align-items: center; height: 38px; padding: 0 16px; border-radius: 999px; background: oklch(99.4% 0.004 80); border: 1px solid oklch(88% 0.01 80); font-size: 14px; font-weight: 500; box-shadow: 0 2px 6px oklch(0% 0 0 / 0.05);">Reveal</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 12px; margin-top: 4px;">
+            <span style="flex: 1; display: inline-flex; align-items: center; justify-content: center; height: 50px; border-radius: 999px; background: oklch(22% 0.012 60); color: oklch(98% 0.006 80); font-weight: 600; font-size: 15px;">Approve · pay 0.010 SOL</span>
+            <span style="display: inline-flex; align-items: center; justify-content: center; height: 50px; padding: 0 22px; border-radius: 999px; border: 1px solid oklch(88% 0.01 80); font-weight: 500; font-size: 15px;">Reject · refund</span>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 22px;">
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: oklch(50% 0.012 60);">Timeline</span>
+            <div style="display: flex; flex-direction: column; gap: 10px; font-size: 14px;">
+              <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 8px; height: 8px; border-radius: 999px; background: oklch(22% 0.012 60);"></span><span>Created</span><span class="mono" style="margin-left: auto; font-size: 12px; color: oklch(50% 0.012 60);">14:02:11</span></div>
+              <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 8px; height: 8px; border-radius: 999px; background: oklch(22% 0.012 60);"></span><span>Open</span><span class="mono" style="margin-left: auto; font-size: 12px; color: oklch(50% 0.012 60);">14:02:12</span></div>
+              <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 8px; height: 8px; border-radius: 999px; background: oklch(22% 0.012 60);"></span><span>Claimed</span><span class="mono" style="margin-left: auto; font-size: 12px; color: oklch(50% 0.012 60);">14:02:19</span></div>
+              <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 8px; height: 8px; border-radius: 999px; background: oklch(58% 0.09 175);"></span><span style="font-weight: 500;">Submitted</span><span class="mono" style="margin-left: auto; font-size: 12px; color: oklch(50% 0.012 60);">14:02:23</span></div>
+              <div style="display: flex; align-items: center; gap: 10px; color: oklch(60% 0.01 60);"><span style="width: 8px; height: 8px; border-radius: 999px; background: oklch(90% 0.01 80);"></span><span>Approved</span></div>
+              <div style="display: flex; align-items: center; gap: 10px; color: oklch(60% 0.01 60);"><span style="width: 8px; height: 8px; border-radius: 999px; background: oklch(90% 0.01 80);"></span><span>Settled</span></div>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 16px; background: oklch(96.5% 0.012 80);">
+            <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: oklch(50% 0.012 60);">Escrow</span>
+            <span class="display" style="font-size: 26px; font-weight: 500;">0.010 SOL</span>
+            <span style="font-size: 13px; color: oklch(45% 0.012 60);">Held on Solana until you approve. Auto-approves 60 min after the deadline.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

@@ -339,3 +339,11 @@ tasks/todo.md                      implementation plan (next step)
   fund-lock gaps in the transition table. `settle_action` requires the terminal signer to hold a funded
   ephemeral balance PDA (index 255); third-party `expire_job` callers should pass
   `schedule_action = false` and rely on `settle_direct`.
+- Product/UI (user, 2026-09-04): the requester surface is chat-first, like ChatGPT/Claude. Each user message
+  becomes one job: prompt = short system preamble + the most recent turns of that conversation trimmed
+  from the oldest to fit 4096 bytes; the job output is the assistant reply. Per message: approve (pay)
+  or reject (refund); optional per-conversation "auto-approve on read". Conversations are client-side
+  (localStorage). No on-chain change. Visual direction: the "Calm" design canvas
+  (https://claude.ai/code/artifact/a48fd524-3dd6-4920-820c-e8b577dcbe7f): warm off-white, one sage-teal
+  accent, Bricolage Grotesque display, Instrument Sans body, JetBrains Mono data. Routes: / landing,
+  /chat (default), /jobs (ledger + detail), /provider.
