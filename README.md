@@ -85,8 +85,7 @@ Account table:
 
 The requester's UI is chat-first: one user message becomes one on-chain job.
 Publishing a message runs four steps on the TEE Ephemeral Rollup, observed
-directly rather than simulated by a timer. Typical latencies from the devnet
-end-to-end run:
+directly rather than simulated by a timer. The four rollup steps are:
 
 1. **Sealing** — `create_job` on the base layer, funding the escrow and the
    permission rent.
@@ -100,10 +99,9 @@ end-to-end run:
    finalized with `finalize_prompt`, which computes the SHA-256 `prompt_hash`
    on-chain and flips the job to `Open`.
 
-After that, the loop moves at rollup speed: a provider worker calls
-`claim_job` (typically well under a second on the ER), reads the prompt,
-answers it, and submits the reply through `write_output` / `finalize_output`.
-The requester's UI polls the rollup, shows the answer once `finalize_output`
+After that, a provider worker calls `claim_job`, reads the prompt, answers it,
+and submits the reply through `write_output` / `finalize_output`. The
+requester's UI polls the rollup, shows the answer once `finalize_output`
 lands, and offers **Approve** or **Reject**.
 
 The prompt is capped at 4096 bytes. The client builds each prompt as a short
