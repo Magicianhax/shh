@@ -38,4 +38,23 @@ pub mod inference_market {
     pub fn delegate_job_private(ctx: Context<DelegateJobPrivate>, nonce: u64) -> Result<()> {
         instructions::delegate_job::delegate_job_private(ctx, nonce)
     }
+
+    pub fn init_permissions(ctx: Context<InitPermissions>) -> Result<()> {
+        instructions::permissions::handler(ctx)
+    }
+    pub fn write_prompt(ctx: Context<PromptCtx>, offset: u16, data: Vec<u8>) -> Result<()> {
+        instructions::prompt::write_prompt(ctx, offset, data)
+    }
+    pub fn finalize_prompt(ctx: Context<PromptCtx>, len: u16) -> Result<()> {
+        instructions::prompt::finalize_prompt(ctx, len)
+    }
+    pub fn claim_job(ctx: Context<ClaimJob>) -> Result<()> {
+        instructions::claim::handler(ctx)
+    }
+    pub fn write_output(ctx: Context<OutputCtx>, offset: u16, data: Vec<u8>) -> Result<()> {
+        instructions::output::write_output(ctx, offset, data)
+    }
+    pub fn finalize_output(ctx: Context<OutputCtx>, len: u16) -> Result<()> {
+        instructions::output::finalize_output(ctx, len)
+    }
 }
