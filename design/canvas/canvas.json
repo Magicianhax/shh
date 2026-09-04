@@ -2,7 +2,7 @@
   "artboards": [
     { "file": "Main.dc.html", "title": "Landing", "x": 0, "y": 0, "w": 1440, "h": 2560, "print": "flow" },
     { "file": "Chat.dc.html", "title": "Product · Chat", "x": 1560, "y": 0, "w": 1440, "h": 960 },
-    { "file": "App.dc.html", "title": "Product · Jobs", "x": 1560, "y": 1100, "w": 1440, "h": 1360 }
+    { "file": "App.dc.html", "title": "Product · Jobs", "x": 1560, "y": 1100, "w": 1440, "h": 1200 }
   ],
   "annotations": [
     { "id": "direction", "x": 0, "y": -170, "w": 520, "text": "Direction: calm and airy. Warm off-white canvas, one sage-teal accent, Bricolage Grotesque display with Instrument Sans body, JetBrains Mono for data. One orchestrated reveal on the hero; nothing else moves.\nLanding on the left. Product on the right: Chat is the default surface (each message is one private job), Jobs is the ledger of every job." },
