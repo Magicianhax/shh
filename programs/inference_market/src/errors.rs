@@ -34,4 +34,6 @@ pub enum MarketError {
     EscrowJobMismatch,
     #[msg("Escrow has not been paid out yet")]
     NotPaid,
+    #[msg("Ephemeral permission for job_private has not been created")]
+    PermissionMissing,
 }

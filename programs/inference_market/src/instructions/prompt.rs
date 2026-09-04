@@ -1,6 +1,9 @@
 use anchor_lang::prelude::*;
+use ephemeral_rollups_sdk::access_control::structs::PERMISSION_SEED;
+use ephemeral_rollups_sdk::consts::PERMISSION_PROGRAM_ID;
 
 use crate::errors::MarketError;
+use crate::instructions::permissions::permission_exists;
 use crate::logic::{check_transition, hash_bytes, write_chunk};
 use crate::state::*;
 
@@ -16,6 +19,14 @@ pub struct PromptCtx<'info> {
     pub job: Account<'info, Job>,
     #[account(mut, seeds = [JOB_PRIVATE_SEED, job.key().as_ref()], bump)]
     pub job_private: AccountLoader<'info, JobPrivate>,
+    /// CHECK: private permission PDA for job_private; must already exist (init_permissions ran).
+    #[account(
+        seeds = [PERMISSION_SEED, job_private.key().as_ref()],
+        bump,
+        seeds::program = PERMISSION_PROGRAM_ID,
+        constraint = permission_exists(&job_private_permission) @ MarketError::PermissionMissing
+    )]
+    pub job_private_permission: UncheckedAccount<'info>,
 }
 
 pub fn write_prompt(ctx: Context<PromptCtx>, offset: u16, data: Vec<u8>) -> Result<()> {

@@ -9,6 +9,14 @@ use crate::state::*;
 
 pub const MEMBER_FLAGS: u8 = TX_LOGS_FLAG | TX_MESSAGE_FLAG | TX_BALANCES_FLAG;
 
+/// True only when `acc` is already an initialized Permission Program account.
+/// Presence of lamports alone is not sufficient: a pre-funded-but-uninitialized
+/// PDA (or one temporarily holding a balance for another reason) must still be
+/// treated as "no permission exists yet" so creation is attempted.
+pub(crate) fn permission_exists(acc: &UncheckedAccount) -> bool {
+    acc.owner == &PERMISSION_PROGRAM_ID && !acc.data_is_empty()
+}
+
 #[derive(Accounts)]
 pub struct InitPermissions<'info> {
     #[account(mut)]
@@ -45,7 +53,7 @@ pub fn handler(ctx: Context<InitPermissions>) -> Result<()> {
     let job_bump = [ctx.accounts.job.bump];
     let job_seeds: &[&[u8]] = &[JOB_SEED, requester.as_ref(), &nonce_bytes, &job_bump];
 
-    if ctx.accounts.job_permission.lamports() == 0 {
+    if !permission_exists(&ctx.accounts.job_permission) {
         CreateEphemeralPermissionCpi {
             payer: ctx.accounts.job.to_account_info(),
             permissioned_account: ctx.accounts.job.to_account_info(),
@@ -62,7 +70,7 @@ pub fn handler(ctx: Context<InitPermissions>) -> Result<()> {
     let jp_bump = [ctx.bumps.job_private];
     let jp_seeds: &[&[u8]] = &[JOB_PRIVATE_SEED, job_key.as_ref(), &jp_bump];
 
-    if ctx.accounts.job_private_permission.lamports() == 0 {
+    if !permission_exists(&ctx.accounts.job_private_permission) {
         CreateEphemeralPermissionCpi {
             payer: ctx.accounts.job_private.to_account_info(),
             permissioned_account: ctx.accounts.job_private.to_account_info(),
