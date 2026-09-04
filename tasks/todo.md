@@ -12,7 +12,7 @@ Spec: docs/superpowers/specs/2026-09-04-private-inference-network-design.md
 - [x] Task 6 terminal instructions + settle + close_job
 - [x] Task 7 devnet deploy
 - [x] Task 8 TS client library
-- [ ] Task 9 devnet e2e test
+- [x] Task 9 devnet e2e test
 - [ ] Task 10 provider worker
 - [ ] Task 11 web UI
 - [ ] Task 12 README + demo script
@@ -22,3 +22,4 @@ Spec: docs/superpowers/specs/2026-09-04-private-inference-network-design.md
 - Redeploy (2026-09-04) after finish.rs fix: slot 493052648, sig 2kVUvctUpKCfmqG9H4cfFSW3kjhWjmq5k8vGNiS47pjCy5Syw8tYptgxBSG3tKV5N6GxAriNXt3upbWQLHSbdb72.
 - Redeploy (2026-09-04) after SettleAction source_program fix: slot 493058493, sig 5fzquzWhhXs3zudvprnjc4xSwQxFR9yi4nrYWp71aPKUH3gq67RJtL1rRuL6ZLnHaU4ZovCtVWSgcfp5rV3jpEVi.
 - Redeploy (2026-09-04) after post-undelegate action fix: slot 493061278, sig 3EqJZ8gwaAy2bLxJTK1p8rrPgFooGku3PkzAPohfG7Mws2kSyd9hee9GaedmED9iboJT3ykfhH7qFgLXsPesX6T3.
+- Task 9 (2026-09-04): devnet E2E OK. Magic Action settles inside the commitment tx (3E9rCMJLVk6Zo6ATzVo2LqfKvoW3mjLvoNtcNJYJKfYAhwPchPtErTCBEECRGi2KqMVqEZcMgMZjHoGWP6RVmuSt). Router fqdn https://devnet-tee.magicblock.app/. ~0.126 SOL per run.
