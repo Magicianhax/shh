@@ -408,11 +408,19 @@ async function main() {
   const actionPaid = escrow.paid === true;
   let settlementPath: "magic-action" | "settle_direct-fallback";
   if (actionPaid) {
+    // The action settled atomically with the commit. Assert it here, before any
+    // fallback could mask it, so a regression to the fallback fails the run.
     settlementPath = "magic-action";
+    assert.equal(escrow.paid, true, "action path must leave the escrow paid");
     console.log("SETTLEMENT PATH: scheduled Magic Action (escrow.paid already true)");
   } else {
     settlementPath = "settle_direct-fallback";
-    console.log("SETTLEMENT PATH: action not observed; falling back to settle_direct");
+    console.log(
+      "\n!!! SETTLEMENT PATH: FALLBACK. The scheduled Magic Action did NOT pay out.\n" +
+        "!!! Every approve is settling through settle_direct. A controller that assumes\n" +
+        "!!! the action pays will be wrong. See the PARKED (c) lines below for the\n" +
+        "!!! failed base transaction and its inner settle_action error.\n",
+    );
     const directSig = await settleDirect(baseProv, providerKp.publicKey, job);
     console.log("settle_direct (base)", directSig);
     escrow = await baseReq.account.escrow.fetch(escrowKey);
