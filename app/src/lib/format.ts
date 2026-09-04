@@ -70,6 +70,25 @@ export const relTime = (unix: { toString(): string }, now = Date.now()): string 
   return secs >= 0 ? `in ${unit}` : `${unit} ago`;
 };
 
+/** "12:04 left" / "ended 3m ago" — the deadline as something to act on. */
+export const countdown = (unix: { toString(): string }, now = Date.now()): string => {
+  const t = num(unix);
+  if (!t) return "no deadline";
+  const ms = t * 1000 - now;
+  if (ms <= 0) return `ended ${relTime(unix, now)}`;
+
+  const secs = Math.floor(ms / 1000);
+  const days = Math.floor(secs / 86400);
+  if (days >= 1) return `${days}d ${Math.floor((secs % 86400) / 3600)}h left`;
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const hours = Math.floor(secs / 3600);
+  const mins = Math.floor((secs % 3600) / 60);
+  return hours > 0
+    ? `${hours}:${pad(mins)}:${pad(secs % 60)} left`
+    : `${mins}:${pad(secs % 60)} left`;
+};
+
 export const byteLen = (s: string): number => new TextEncoder().encode(s).length;
 
 /**

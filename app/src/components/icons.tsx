@@ -1,4 +1,4 @@
-/** Authored 16px line icons, one stroke weight, so no glyph stands in for an icon. */
+/** Authored line icons, one stroke weight, so no emoji stands in for an icon. */
 
 type Props = { size?: number };
 
@@ -43,9 +43,33 @@ export const RefreshIcon = ({ size = 13 }: Props) => (
   </svg>
 );
 
-export const Wordmark = ({ size = 22 }: Props) => (
+export const CloseIcon = ({ size = 14 }: Props) => (
+  <svg {...base(size)}>
+    <path d="m3.6 3.6 8.8 8.8m0-8.8-8.8 8.8" />
+  </svg>
+);
+
+export const LockIcon = ({ size = 13 }: Props) => (
+  <svg {...base(size)}>
+    <rect x="3" y="7" width="10" height="6.6" rx="1.8" />
+    <path d="M5.4 7V5.1a2.6 2.6 0 0 1 5.2 0V7" />
+  </svg>
+);
+
+export const UnlockIcon = ({ size = 13 }: Props) => (
+  <svg {...base(size)}>
+    <rect x="3" y="7" width="10" height="6.6" rx="1.8" />
+    <path d="M5.4 7V5.1a2.6 2.6 0 0 1 5.05-.85" />
+  </svg>
+);
+
+/**
+ * Three rising bars: a job entering the rollup and coming out settled. The only
+ * mark on the page, so it carries the accent.
+ */
+export const Wordmark = ({ size = 36 }: Props) => (
   <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-    <rect width="32" height="32" rx="8" fill="var(--accent)" />
+    <rect width="32" height="32" rx="9" fill="var(--accent)" />
     <path
       d="M10 21V11m6 10V11m6 10V15"
       fill="none"

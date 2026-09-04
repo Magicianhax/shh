@@ -1,15 +1,16 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
+import { JobTimeline } from "./JobTimeline";
 import { StatusPill } from "./StatusPill";
-import { CheckIcon, CopyIcon, LinkIcon } from "./icons";
+import { CheckIcon, CloseIcon, CopyIcon, LinkIcon } from "./icons";
 import type { JobRow } from "../hooks/useJobs";
 import {
+  countdown,
   explorerAddress,
   hexFull,
   hexPreview,
   isUnset,
   labelText,
-  relTime,
   shortKey,
   solText,
   timeText,
@@ -48,105 +49,118 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 type Props = {
   row: JobRow;
   escrow: EscrowView;
-  /** Rendered under the facts grid: the actions available to this role. */
-  children?: ReactNode;
+  now: number;
+  onClose: () => void;
+  /** The private result, already decoded, sealed by the caller. */
+  result: ReactNode;
+  /** Role-specific controls, pinned to the bottom of the panel. */
+  actions?: ReactNode;
 };
 
 /**
- * Everything public about one job. Private buffers are never rendered here —
- * the requester's decoded output lives in its own section on the Requester page.
+ * One job's public record, as the slide-over's contents. Private buffers are
+ * never rendered here; the caller passes them in already wrapped in a seal.
  */
-export function JobDetail({ row, escrow, children }: Props) {
+export function JobDetail({ row, escrow, now, onClose, result, actions }: Props) {
   const job = row.account;
   const address = row.publicKey.toBase58();
   const claimed = !isUnset(job.provider);
 
   return (
-    <section className="panel">
-      <header className="detail-head">
+    <>
+      <header className="sheet-head">
         <div style={{ minWidth: 0 }}>
           <h2>{labelText(job.modelLabel) || "unlabelled model"}</h2>
-          <p className="sub">
-            {row.layer === "er"
-              ? "Delegated to the TEE rollup"
-              : "Owned by the program on devnet"}
+          <p className="sub" style={{ marginTop: 4 }}>
+            {solText(job.priceLamports)} SOL · {countdown(job.deadlineUnix, now)}
           </p>
         </div>
-        <div className="spacer" />
+        <span className="spacer" />
         <StatusPill status={job.status} paid={escrow?.paid} />
+        <button type="button" className="iconbtn" onClick={onClose} aria-label="Close panel">
+          <CloseIcon />
+        </button>
       </header>
 
-      <div className="facts">
-        <Fact label="Job account">
-          <code className="mono">{shortKey(address, 6)}</code>
-          <Copy text={address} label="job address" />
-          <a
-            className="iconbtn"
-            href={explorerAddress(address)}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Open job on Solana Explorer"
-          >
-            <LinkIcon />
-          </a>
-        </Fact>
+      <div className="sheet-body">
+        <div className="block">
+          <JobTimeline job={job} paid={escrow?.paid} />
+        </div>
 
-        <Fact label="Price">
-          <span>{solText(job.priceLamports)} SOL</span>
-        </Fact>
+        <div className="block">
+          <div className="block-head">
+            <h3>Result</h3>
+          </div>
+          {result}
+        </div>
 
-        <Fact label="Escrow">
-          {escrow ? (
-            <span>
-              {solText(escrow.amount)} SOL {escrow.paid ? "· paid out" : "· held"}
-            </span>
-          ) : (
-            <span className="muted">closed or unread</span>
-          )}
-        </Fact>
+        <div className="block">
+          <div className="block-head">
+            <h3>Record</h3>
+          </div>
+          <div className="facts">
+            <Fact label="Job account">
+              <code className="mono">{shortKey(address, 6)}</code>
+              <Copy text={address} label="job address" />
+              <a
+                className="iconbtn"
+                href={explorerAddress(address)}
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Open job on Solana Explorer"
+              >
+                <LinkIcon />
+              </a>
+            </Fact>
 
-        <Fact label="Requester">
-          <code className="mono">{shortKey(job.requester, 6)}</code>
-          <Copy text={job.requester.toBase58()} label="requester" />
-        </Fact>
+            <Fact label="Escrow">
+              {escrow ? (
+                <span>
+                  {solText(escrow.amount)} SOL {escrow.paid ? "· paid out" : "· held"}
+                </span>
+              ) : (
+                <span className="muted">closed or unread</span>
+              )}
+            </Fact>
 
-        <Fact label="Provider">
-          {claimed ? (
-            <>
-              <code className="mono">{shortKey(job.provider, 6)}</code>
-              <Copy text={job.provider.toBase58()} label="provider" />
-            </>
-          ) : (
-            <span className="muted">unclaimed</span>
-          )}
-        </Fact>
+            <Fact label="Requester">
+              <code className="mono">{shortKey(job.requester, 6)}</code>
+              <Copy text={job.requester.toBase58()} label="requester" />
+            </Fact>
 
-        <Fact label="Deadline">
-          <span>
-            {timeText(job.deadlineUnix)} <span className="muted">({relTime(job.deadlineUnix)})</span>
-          </span>
-        </Fact>
+            <Fact label="Provider">
+              {claimed ? (
+                <>
+                  <code className="mono">{shortKey(job.provider, 6)}</code>
+                  <Copy text={job.provider.toBase58()} label="provider" />
+                </>
+              ) : (
+                <span className="muted">unclaimed</span>
+              )}
+            </Fact>
 
-        <Fact label="Created">
-          <span>{timeText(job.createdAt)}</span>
-        </Fact>
+            <Fact label="Deadline">
+              <span>{timeText(job.deadlineUnix)}</span>
+            </Fact>
 
-        <Fact label="Submitted">
-          <span>{timeText(job.submittedAt)}</span>
-        </Fact>
+            <Fact label="Submitted">
+              <span>{timeText(job.submittedAt)}</span>
+            </Fact>
 
-        <Fact label="Prompt hash">
-          <code className="mono">{hexPreview(job.promptHash)}</code>
-          <Copy text={hexFull(job.promptHash)} label="prompt hash" />
-        </Fact>
+            <Fact label="Prompt hash">
+              <code className="mono">{hexPreview(job.promptHash)}</code>
+              <Copy text={hexFull(job.promptHash)} label="prompt hash" />
+            </Fact>
 
-        <Fact label="Output hash">
-          <code className="mono">{hexPreview(job.outputHash)}</code>
-          <Copy text={hexFull(job.outputHash)} label="output hash" />
-        </Fact>
+            <Fact label="Output hash">
+              <code className="mono">{hexPreview(job.outputHash)}</code>
+              <Copy text={hexFull(job.outputHash)} label="output hash" />
+            </Fact>
+          </div>
+        </div>
       </div>
 
-      {children}
-    </section>
+      {actions ? <div className="sheet-foot">{actions}</div> : null}
+    </>
   );
 }

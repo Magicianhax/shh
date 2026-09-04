@@ -30,7 +30,7 @@ export function StatusPill({ status, paid }: Props) {
 
   return (
     <span className={`pill tone-${tone}`}>
-      <i className="dot" />
+      <i />
       {titleCase(key)}
       {suffix ? <span className="suffix">{suffix}</span> : null}
     </span>

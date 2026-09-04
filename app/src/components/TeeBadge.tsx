@@ -6,9 +6,9 @@ type Health = "checking" | "live" | "down";
 const INTERVAL_MS = 30_000;
 
 /**
- * Devnet TEE ephemeral-rollup health, polled from the MagicBlock status API.
- * Everything on the Requester and Provider pages runs through that rollup, so
- * a red badge explains every failure below it.
+ * Devnet TEE ephemeral-rollup health, polled from the MagicBlock status API
+ * every 30 seconds. Everything on both pages runs through that rollup, so a red
+ * beacon explains every failure below it. The ring pulses only while healthy.
  */
 export function TeeBadge() {
   const [health, setHealth] = useState<Health>("checking");
@@ -44,7 +44,7 @@ export function TeeBadge() {
       className="chip"
       title={checkedAt ? `Last checked ${checkedAt.toLocaleTimeString()}` : "Checking status"}
     >
-      <i className={`dot dot-${health === "checking" ? "wait" : health}`} />
+      <i className={`beacon beacon-${health === "checking" ? "wait" : health}`} />
       {text}
     </span>
   );

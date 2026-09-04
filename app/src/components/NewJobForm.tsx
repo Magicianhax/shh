@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import type { FormEvent } from "react";
+import type { CSSProperties, FormEvent } from "react";
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import type { PublicKey } from "@solana/web3.js";
 import {
@@ -11,6 +11,8 @@ import {
   permissionPda,
   publishJob,
 } from "@inference-market/client";
+import { Segmented } from "./Segmented";
+import { CheckIcon, LockIcon } from "./icons";
 import type { Market } from "../hooks/useMarket";
 import { useNotify } from "../notify";
 import { byteLen, capBytes, errText, shortKey } from "../lib/format";
@@ -18,6 +20,20 @@ import { byteLen, capBytes, errText, shortKey } from "../lib/format";
 type StepState = "idle" | "active" | "done" | "failed";
 
 const STEP_NAMES = ["Create", "Delegate", "Permissions", "Prompt"] as const;
+
+const PRICES = [
+  { label: "0.005", value: "0.005" },
+  { label: "0.01", value: "0.01" },
+  { label: "0.05", value: "0.05" },
+  { label: "Custom", value: "custom" },
+];
+
+const DEADLINES = [
+  { label: "15m", value: "15" },
+  { label: "30m", value: "30" },
+  { label: "1h", value: "60" },
+  { label: "Custom", value: "custom" },
+];
 
 type Props = {
   market: Market;
@@ -37,17 +53,22 @@ export function NewJobForm({ market, onPublished }: Props) {
   const notify = useNotify();
 
   const [model, setModel] = useState("llama-3.1-8b");
-  const [price, setPrice] = useState("0.01");
-  const [minutes, setMinutes] = useState("30");
+  const [priceMode, setPriceMode] = useState("0.01");
+  const [priceCustom, setPriceCustom] = useState("0.02");
+  const [deadlineMode, setDeadlineMode] = useState("30");
+  const [deadlineCustom, setDeadlineCustom] = useState("120");
   const [prompt, setPrompt] = useState("");
   const [steps, setSteps] = useState<StepState[]>(["idle", "idle", "idle", "idle"]);
   const [busy, setBusy] = useState(false);
   const watcher = useRef(0);
 
   const bytes = byteLen(prompt);
+  const fill = Math.min(1, bytes / PROMPT_MAX);
+  const priceSol = Number(priceMode === "custom" ? priceCustom : priceMode);
+  const mins = Number(deadlineMode === "custom" ? deadlineCustom : deadlineMode);
+  const priceLamports = Math.round(priceSol * LAMPORTS_PER_SOL);
+
   const ready = Boolean(base && er && validator && wallet.publicKey);
-  const priceLamports = Math.round(Number(price) * LAMPORTS_PER_SOL);
-  const mins = Number(minutes);
   const valid =
     ready &&
     model.trim().length > 0 &&
@@ -143,12 +164,35 @@ export function NewJobForm({ market, onPublished }: Props) {
 
   return (
     <form className="panel" onSubmit={submit}>
-      <div className="panel-head">
-        <h2>Post a job</h2>
-      </div>
+      <div className="panel-body composer">
+        <div>
+          <label className="label" htmlFor="prompt">
+            Prompt
+          </label>
+          <textarea
+            id="prompt"
+            value={prompt}
+            disabled={busy}
+            spellCheck={false}
+            onChange={(e) => setPrompt(capBytes(e.target.value, PROMPT_MAX))}
+            placeholder="Ask the model something. Nobody outside the enclave and the two wallets on this job can read it."
+          />
+          <div className={`meter${bytes >= PROMPT_MAX ? " full" : ""}`}>
+            <div className="meter-track">
+              <i style={{ "--p": fill } as CSSProperties} />
+            </div>
+            <div className="meter-row">
+              <span>
+                <LockIcon size={11} /> Sealed in the rollup behind a read permission
+              </span>
+              <span>
+                <b>{bytes.toLocaleString()}</b> / {PROMPT_MAX.toLocaleString()} bytes
+              </span>
+            </div>
+          </div>
+        </div>
 
-      <div className="panel-body">
-        <div className="row">
+        <div>
           <div className="field">
             <label className="label" htmlFor="model">
               Model
@@ -162,89 +206,97 @@ export function NewJobForm({ market, onPublished }: Props) {
               placeholder="llama-3.1-8b"
             />
           </div>
+
           <div className="field">
-            <label className="label" htmlFor="price">
-              Price (SOL)
-            </label>
-            <input
-              id="price"
-              type="number"
-              min="0"
-              step="0.001"
-              value={price}
+            <span className="label">Price</span>
+            <Segmented
+              label="Price in SOL"
+              options={PRICES}
+              value={priceMode}
               disabled={busy}
-              onChange={(e) => setPrice(e.target.value)}
+              onChange={setPriceMode}
             />
-          </div>
-        </div>
-
-        <div className="field">
-          <label className="label" htmlFor="minutes">
-            Deadline (minutes from now)
-          </label>
-          <input
-            id="minutes"
-            type="number"
-            min="1"
-            step="1"
-            value={minutes}
-            disabled={busy}
-            onChange={(e) => setMinutes(e.target.value)}
-          />
-          <div className="meter">
-            <span>
-              You alone can approve for {AUTO_APPROVE_SECS / 60} minutes past the deadline.
-            </span>
-          </div>
-        </div>
-
-        <div className="field">
-          <label className="label" htmlFor="prompt">
-            Prompt
-          </label>
-          <textarea
-            id="prompt"
-            value={prompt}
-            disabled={busy}
-            spellCheck={false}
-            onChange={(e) => setPrompt(capBytes(e.target.value, PROMPT_MAX))}
-            placeholder="Only the TEE and the wallets on the permission list can read this."
-          />
-          <div className={`meter${bytes >= PROMPT_MAX ? " full" : ""}`}>
-            <span>Stored in the rollup behind a read permission.</span>
-            <span>
-              {bytes.toLocaleString()} / {PROMPT_MAX.toLocaleString()} bytes
-            </span>
-          </div>
-        </div>
-
-        <div className="field">
-          <button type="submit" className="btn btn-primary btn-wide" disabled={!valid || busy}>
-            {busy ? <i className="spin" /> : null}
-            {busy ? "Publishing" : "Publish job"}
-          </button>
-        </div>
-
-        {steps.some((s) => s !== "idle") ? (
-          <div className="stepper">
-            {STEP_NAMES.map((name, i) => (
-              <div key={name} className={`step ${steps[i]}`}>
-                <div className="track">
-                  <i />
-                </div>
-                <span>{name}</span>
+            {priceMode === "custom" ? (
+              <div className="seg-custom">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.001"
+                  value={priceCustom}
+                  disabled={busy}
+                  aria-label="Price in SOL"
+                  onChange={(e) => setPriceCustom(e.target.value)}
+                />
               </div>
-            ))}
+            ) : null}
           </div>
-        ) : null}
 
-        {!ready ? (
-          <p className="note" style={{ marginTop: 14 }}>
-            {wallet.publicKey
-              ? "Waiting for the TEE rollup session. Approve the signature request from your wallet."
-              : "Connect a wallet that can sign messages to post a job."}
-          </p>
-        ) : null}
+          <div className="field">
+            <span className="label">Deadline</span>
+            <Segmented
+              label="Deadline in minutes"
+              options={DEADLINES}
+              value={deadlineMode}
+              disabled={busy}
+              onChange={setDeadlineMode}
+            />
+            {deadlineMode === "custom" ? (
+              <div className="seg-custom">
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={deadlineCustom}
+                  disabled={busy}
+                  aria-label="Deadline in minutes"
+                  onChange={(e) => setDeadlineCustom(e.target.value)}
+                />
+              </div>
+            ) : null}
+            <p className="meter-row" style={{ marginTop: 8 }}>
+              <span>
+                You alone can approve for {AUTO_APPROVE_SECS / 60} minutes past the deadline.
+              </span>
+            </p>
+          </div>
+
+          <div className="field">
+            <button
+              type="submit"
+              className="btn btn-primary btn-lg btn-wide"
+              disabled={!valid || busy}
+            >
+              {busy ? <i className="spin" /> : <LockIcon size={15} />}
+              {busy ? "Publishing" : "Publish privately"}
+            </button>
+          </div>
+
+          {steps.some((s) => s !== "idle") ? (
+            <div className="steps">
+              {STEP_NAMES.map((name, i) => (
+                <div key={name} className={`pstep ${steps[i]}`}>
+                  <div className="track">
+                    <i />
+                  </div>
+                  <span className="pstep-label">
+                    <span className="pstep-check">
+                      <CheckIcon size={11} />
+                    </span>
+                    {name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {!ready ? (
+            <p className="note" style={{ marginTop: 16 }}>
+              {wallet.publicKey
+                ? "Opening the TEE rollup session. Approve the signature request from your wallet."
+                : "Connect a wallet that can sign messages to post a job."}
+            </p>
+          ) : null}
+        </div>
       </div>
     </form>
   );

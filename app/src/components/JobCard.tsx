@@ -1,34 +1,39 @@
-import { StatusPill } from "./StatusPill";
+import { JobTimeline } from "./JobTimeline";
 import type { JobRow } from "../hooks/useJobs";
-import { labelText, relTime, shortKey, solText } from "../lib/format";
+import { countdown, labelText, num, solText } from "../lib/format";
 
 type Props = {
   row: JobRow;
   selected: boolean;
+  now: number;
+  /** `Escrow.paid` when known, so the card's final step can read "settled". */
+  paid?: boolean;
   onSelect: () => void;
 };
 
-export function JobCard({ row, selected, onSelect }: Props) {
+export function JobCard({ row, selected, now, paid, onSelect }: Props) {
   const job = row.account;
   const model = labelText(job.modelLabel) || "unlabelled model";
+  const msLeft = num(job.deadlineUnix) * 1000 - now;
+  const urgent = msLeft > 0 && msLeft < 5 * 60_000;
 
   return (
-    <button type="button" className="job" aria-selected={selected} onClick={onSelect}>
-      <span className="job-title">
-        <span className="name">{model}</span>
-        <StatusPill status={job.status} />
-      </span>
-      <span className="job-meta">
-        <code className="mono">{shortKey(row.publicKey)}</code>
-        <span className="sep">/</span>
+    <button type="button" className="card" aria-selected={selected} onClick={onSelect}>
+      <div className="card-top">
+        <span className="card-model">{model}</span>
+        <span className="card-price">
+          {solText(job.priceLamports)}
+          <small>SOL</small>
+        </span>
+      </div>
+
+      <div className="card-meta">
+        <span className={urgent ? "urgent" : undefined}>{countdown(job.deadlineUnix, now)}</span>
+        <i className="dot-sep" />
         <span>{row.layer === "er" ? "on rollup" : "on devnet"}</span>
-        <span className="sep">/</span>
-        <span>{relTime(job.deadlineUnix)}</span>
-      </span>
-      <span className="job-price">
-        {solText(job.priceLamports)}
-        <small>SOL</small>
-      </span>
+      </div>
+
+      <JobTimeline job={job} paid={paid} />
     </button>
   );
 }
