@@ -106,6 +106,10 @@ pub fn run(ctx: Context<FinishJob>, to: JobStatus, schedule_action: bool) -> Res
         job.status = to;
     }
 
+    // Persist the status change now: after commit_and_undelegate the ER forbids further
+    // writes, and Anchor's automatic exit must then write identical bytes.
+    ctx.accounts.job.exit(&crate::ID)?;
+
     // Scrub private bytes before anything can commit. The `RefMut` from
     // `load_mut()` is dropped at the end of this block so the permission CPIs
     // and the intent bundle can borrow `job_private`'s AccountInfo data.
