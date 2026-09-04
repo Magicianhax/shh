@@ -1,0 +1,22 @@
+[package]
+name = "inference_market"
+version = "0.1.0"
+description = "Private inference marketplace on MagicBlock PER"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "inference_market"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build"]
+
+[dependencies]
+anchor-lang = { version = "1.0.2", features = ["init-if-needed"] }
+ephemeral-rollups-sdk = { version = "0.16.2", features = ["anchor", "access-control"] }
+bytemuck = { version = "1", features = ["derive", "min_const_generics"] }

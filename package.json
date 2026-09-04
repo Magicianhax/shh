@@ -1,0 +1,21 @@
+{
+  "name": "inference-market-workspace",
+  "private": true,
+  "type": "module",
+  "workspaces": ["client", "worker", "app"],
+  "scripts": {
+    "test:local": "anchor test",
+    "test:devnet": "tsx tests/devnet/e2e.ts"
+  },
+  "devDependencies": {
+    "@coral-xyz/anchor": "0.32.1",
+    "@magicblock-labs/ephemeral-rollups-sdk": "0.15.5",
+    "@solana/web3.js": "^1.98.0",
+    "@noble/hashes": "^1.5.0",
+    "bs58": "^6.0.0",
+    "tweetnacl": "^1.0.3",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0"
+  }
+}
