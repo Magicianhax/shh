@@ -154,7 +154,8 @@ pub fn run(ctx: Context<FinishJob>, to: JobStatus, schedule_action: bool) -> Res
         .invoke_signed(&[jp_seeds])?;
     }
 
-    // Commit-and-undelegate both PDAs, optionally with the settle action.
+    // Commit-and-undelegate both PDAs, optionally with the settle action scheduled
+    // to run after undelegation.
     let builder = MagicIntentBundleBuilder::new(
         ctx.accounts.signer.to_account_info(),
         ctx.accounts.magic_context.to_account_info(),
@@ -195,7 +196,13 @@ pub fn run(ctx: Context<FinishJob>, to: JobStatus, schedule_action: bool) -> Res
             escrow_authority: ctx.accounts.signer.to_account_info(),
             compute_units: 200_000,
         };
-        builder.add_post_commit_actions([action]).build_and_invoke()?;
+        // Post-undelegate, not post-commit: the committor places post-commit actions
+        // before the undelegation instructions, so settle_action would still see `job`
+        // owned by the delegation program and fail with JobStillDelegated. Running it
+        // after undelegation gives it the program-owned `job` it deserializes.
+        builder
+            .add_post_undelegate_actions([action])
+            .build_and_invoke()?;
     } else {
         builder.build_and_invoke()?;
     }
