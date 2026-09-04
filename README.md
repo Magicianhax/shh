@@ -248,7 +248,8 @@ npm run idl:sync
 3. Start the provider worker separately, pointed at the same devnet program
    with a model label matching the job's. It claims the job, reads the
    prompt, and submits an answer within its poll interval.
-4. Watch the answer stream into the chat.
+4. Wait for the answer. It appears in the chat in one piece, once the provider's
+   `finalize_output` lands on the rollup.
 5. Click **Approve**. The message moves to "settling," then "settled" once the
    escrow reports paid, whether that happens through the atomic Magic Action
    or the `settle_direct` fallback.
@@ -267,8 +268,9 @@ npm run idl:sync
   only affects the provider's on-chain reputation counter.
 - Reputation is the only deterrent against bad behavior on either side.
 - Devnet only; this has not been deployed to mainnet.
-- Conversations are stored client-side in the browser's `localStorage`, not on
-  chain and not synced across devices.
+- Conversations are stored per browser per wallet, in `localStorage` under
+  `im.chat.v1.<wallet pubkey>`. They are not on chain, not synced across
+  devices, and not shown at all until a wallet is connected.
 - Nothing in this system proves which model a provider actually ran.
 
 ## Links

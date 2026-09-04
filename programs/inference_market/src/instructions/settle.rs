@@ -5,6 +5,11 @@ use crate::errors::MarketError;
 use crate::logic::{settle_recipient, Recipient};
 use crate::state::*;
 
+// `escrow` is the gate here: only the delegation program can sign for the
+// ephemeral balance PDA, which is what proves this came from the scheduled
+// post-undelegate action. `escrow_auth` is deliberately unbounded — any funded
+// payer may have scheduled it — because settlement itself is permissionless:
+// `settle_direct` runs the identical `settle` validation for anyone who asks.
 #[action]
 #[derive(Accounts)]
 pub struct SettleAction<'info> {
