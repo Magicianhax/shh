@@ -149,6 +149,44 @@ export async function delegateJob(
 // Ephemeral rollup
 // ---------------------------------------------------------------------------
 
+/**
+ * Send an ER instruction and surface the real on-chain failure.
+ *
+ * Anchor 0.32.1 rebuilds a failed transaction's error with the pre-1.95
+ * two-argument `new SendTransactionError(message, logs)` form, while
+ * `@solana/web3.js` 1.98 expects a single options object. The mismatch turns
+ * every failed ER transaction into the useless `Unknown action 'undefined'`
+ * and drops the signature, the runtime error and the logs on the floor. Sending
+ * the transaction here keeps all three.
+ *
+ * `skipPreflight: true` is deliberate: the TEE endpoint requires the auth token
+ * on simulation as well as send, and Anchor does not forward the custom query
+ * string on its simulate path.
+ */
+async function erRpc(er: AnyProgram, builder: any): Promise<string> {
+  const provider = er.provider as anchor.AnchorProvider;
+  const conn = provider.connection;
+  const tx: Transaction = await builder.transaction();
+  tx.feePayer = provider.wallet.publicKey;
+  const bh = await conn.getLatestBlockhash("confirmed");
+  tx.recentBlockhash = bh.blockhash;
+  const signed = await provider.wallet.signTransaction(tx);
+  const sig = await conn.sendRawTransaction(signed.serialize(), { skipPreflight: true });
+  const res = await conn.confirmTransaction({ signature: sig, ...bh }, "confirmed");
+  if (res.value.err) {
+    const failed = await conn.getTransaction(sig, {
+      commitment: "confirmed",
+      maxSupportedTransactionVersion: 0,
+    });
+    const logs = failed?.meta?.logMessages ?? [];
+    throw new Error(
+      `ER transaction ${sig} failed: ${JSON.stringify(res.value.err)}\n` +
+        `logs:\n  ${logs.join("\n  ")}`,
+    );
+  }
+  return sig;
+}
+
 /** Accounts shared by `init_permissions` and the four terminal instructions. */
 const permAccounts = (job: PublicKey) => ({
   jobPermission: permissionPda(job),
@@ -162,11 +200,8 @@ const permAccounts = (job: PublicKey) => ({
  * Delegate both PDAs, wait for the router to place them on one ER, create the
  * ER-local permissions, then stream the prompt in and seal it.
  *
- * `skipPreflight: true` on every ER call: the TEE endpoint requires the auth
- * token on simulation as well as send, and Anchor 0.32.1 does not forward the
- * custom query string on its simulate path. On failure, inspect the executed
- * transaction with
- * `er.provider.connection.getTransaction(sig, { commitment: "confirmed" })`.
+ * Every ER instruction goes through `erRpc`, which skips preflight and reports
+ * the signature, runtime error and logs of a failed transaction.
  */
 export async function publishJob(
   p: Programs,
@@ -186,22 +221,28 @@ export async function publishJob(
   await delegateJob(p.base, requester, nonce, validator);
   const fqdn = await waitForDelegation(router, [job, jp]);
 
-  await p.er.methods
-    .initPermissions()
-    .accounts({ requester, job, jobPrivate: jp, ...permAccounts(job) })
-    .rpc({ skipPreflight: true });
+  await erRpc(
+    p.er,
+    p.er.methods
+      .initPermissions()
+      .accounts({ requester, job, jobPrivate: jp, ...permAccounts(job) }),
+  );
 
   for (const c of chunk(prompt)) {
-    await p.er.methods
-      .writePrompt(c.offset, Buffer.from(c.data))
-      .accounts({ requester, job, jobPrivate: jp, jobPrivatePermission: jpPermission })
-      .rpc({ skipPreflight: true });
+    await erRpc(
+      p.er,
+      p.er.methods
+        .writePrompt(c.offset, Buffer.from(c.data))
+        .accounts({ requester, job, jobPrivate: jp, jobPrivatePermission: jpPermission }),
+    );
   }
 
-  await p.er.methods
-    .finalizePrompt(prompt.length)
-    .accounts({ requester, job, jobPrivate: jp, jobPrivatePermission: jpPermission })
-    .rpc({ skipPreflight: true });
+  await erRpc(
+    p.er,
+    p.er.methods
+      .finalizePrompt(prompt.length)
+      .accounts({ requester, job, jobPrivate: jp, jobPrivatePermission: jpPermission }),
+  );
 
   return { job, fqdn };
 }
@@ -212,9 +253,9 @@ export async function claimJob(
   job: PublicKey,
 ): Promise<string> {
   const jp = jobPrivatePda(job);
-  return er.methods
-    .claimJob()
-    .accounts({
+  return erRpc(
+    er,
+    er.methods.claimJob().accounts({
       provider,
       providerAccount: providerPda(provider),
       job,
@@ -223,8 +264,8 @@ export async function claimJob(
       permissionProgram: PERMISSION_PROGRAM_ID,
       ephemeralVault: EPHEMERAL_VAULT_ID,
       magicProgram: MAGIC_PROGRAM_ID,
-    })
-    .rpc({ skipPreflight: true });
+    }),
+  );
 }
 
 /**
@@ -267,15 +308,17 @@ export async function submitOutput(
   }
   const jp = jobPrivatePda(job);
   for (const c of chunk(output)) {
-    await er.methods
-      .writeOutput(c.offset, Buffer.from(c.data))
-      .accounts({ provider, job, jobPrivate: jp })
-      .rpc({ skipPreflight: true });
+    await erRpc(
+      er,
+      er.methods
+        .writeOutput(c.offset, Buffer.from(c.data))
+        .accounts({ provider, job, jobPrivate: jp }),
+    );
   }
-  return er.methods
-    .finalizeOutput(output.length)
-    .accounts({ provider, job, jobPrivate: jp })
-    .rpc({ skipPreflight: true });
+  return erRpc(
+    er,
+    er.methods.finalizeOutput(output.length).accounts({ provider, job, jobPrivate: jp }),
+  );
 }
 
 export type FinishKind = "approve" | "reject" | "cancel" | "expire";
@@ -322,7 +365,7 @@ export async function finishJob(
     cancel: er.methods.cancelJob,
     expire: er.methods.expireJob,
   }[kind];
-  const sig: string = await m(scheduleAction).accounts(accounts).rpc({ skipPreflight: true });
+  const sig: string = await erRpc(er, m(scheduleAction).accounts(accounts));
   const commitSig = await GetCommitmentSignature(sig, er.provider.connection);
   return { erSig: sig, commitSig };
 }
