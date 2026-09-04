@@ -2,6 +2,12 @@ import { test, before } from "node:test";
 import assert from "node:assert/strict";
 import * as anchor from "@coral-xyz/anchor";
 import { PublicKey, SystemProgram, LAMPORTS_PER_SOL, Keypair } from "@solana/web3.js";
+import {
+  DELEGATION_PROGRAM_ID,
+  delegateBufferPdaFromDelegatedAccountAndOwnerProgram,
+  delegationRecordPdaFromDelegatedAccount,
+  delegationMetadataPdaFromDelegatedAccount,
+} from "@magicblock-labs/ephemeral-rollups-sdk";
 
 const provider = anchor.AnchorProvider.env();
 anchor.setProvider(provider);
@@ -59,4 +65,33 @@ test("create_job rejects zero price and short deadline", async () => {
   await assert.rejects(
     program.methods.createJob(new anchor.BN(2), new anchor.BN(1000), new anchor.BN(Math.floor(Date.now()/1000)+10), label("x")).accounts(accounts).rpc(),
     /DeadlineTooSoon/);
+});
+
+test("delegate_job and delegate_job_private lock both PDAs under the delegation program", async () => {
+  const nonce = 1n;
+  const job = jobPda(wallet.publicKey, nonce);
+  const jp = jobPrivatePda(job);
+  const delAccounts = (acct: PublicKey) => ({
+    bufferAcct: delegateBufferPdaFromDelegatedAccountAndOwnerProgram(acct, program.programId),
+    record: delegationRecordPdaFromDelegatedAccount(acct),
+    meta: delegationMetadataPdaFromDelegatedAccount(acct),
+  });
+  const dj = delAccounts(job);
+  const dp = delAccounts(jp);
+  const tx = new anchor.web3.Transaction()
+    .add(await program.methods.delegateJob(new anchor.BN(1)).accounts({
+      requester: wallet.publicKey, job, validator: null,
+      bufferJob: dj.bufferAcct, delegationRecordJob: dj.record, delegationMetadataJob: dj.meta,
+      ownerProgram: program.programId, delegationProgram: DELEGATION_PROGRAM_ID, systemProgram: SystemProgram.programId,
+    }).instruction())
+    .add(await program.methods.delegateJobPrivate(new anchor.BN(1)).accounts({
+      requester: wallet.publicKey, job, jobPrivate: jp, validator: null,
+      bufferJobPrivate: dp.bufferAcct, delegationRecordJobPrivate: dp.record, delegationMetadataJobPrivate: dp.meta,
+      ownerProgram: program.programId, delegationProgram: DELEGATION_PROGRAM_ID, systemProgram: SystemProgram.programId,
+    }).instruction());
+  await provider.sendAndConfirm(tx);
+  const jobInfo = await provider.connection.getAccountInfo(job);
+  const jpInfo = await provider.connection.getAccountInfo(jp);
+  assert.equal(jobInfo!.owner.toBase58(), DELEGATION_PROGRAM_ID.toBase58());
+  assert.equal(jpInfo!.owner.toBase58(), DELEGATION_PROGRAM_ID.toBase58());
 });

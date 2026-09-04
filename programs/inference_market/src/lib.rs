@@ -31,4 +31,11 @@ pub mod inference_market {
     ) -> Result<()> {
         instructions::create_job::handler(ctx, nonce, price_lamports, deadline_unix, model_label)
     }
+
+    pub fn delegate_job(ctx: Context<DelegateJob>, nonce: u64) -> Result<()> {
+        instructions::delegate_job::delegate_job(ctx, nonce)
+    }
+    pub fn delegate_job_private(ctx: Context<DelegateJobPrivate>, nonce: u64) -> Result<()> {
+        instructions::delegate_job::delegate_job_private(ctx, nonce)
+    }
 }
