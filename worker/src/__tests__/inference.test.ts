@@ -10,6 +10,16 @@ test("truncateOutput caps at OUTPUT_MAX with marker", () => {
   assert.equal(Buffer.from(out.subarray(5120 - 14)).toString(), "[…truncated]");
 });
 
+test("truncateOutput never splits a multi-byte character", () => {
+  // "é" is 2 bytes, so a naive cut at OUTPUT_MAX - MARKER.length lands inside one.
+  const big = new TextEncoder().encode("é".repeat(4000));
+  const out = truncateOutput(big);
+  assert.ok(out.length <= 5120);
+  const text = new TextDecoder("utf-8", { fatal: true }).decode(out);
+  assert.ok(text.endsWith("[…truncated]"));
+  assert.doesNotMatch(text, /\uFFFD/, "no replacement character may appear");
+});
+
 test("runInference (openai) posts chat/completions and returns bytes", async () => {
   let seenUrl = "";
   let seenHeaders: Record<string, string> = {};

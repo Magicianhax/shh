@@ -12,12 +12,22 @@ export type InferenceOptions = {
   baseUrl?: string;
 };
 
-/** Cap `bytes` at `OUTPUT_MAX`, replacing the tail with a truncation marker. */
+/**
+ * Cap `bytes` at `OUTPUT_MAX`, replacing the tail with a truncation marker.
+ *
+ * The cut point is moved back over any UTF-8 continuation bytes first, so a
+ * multi-byte character is never split in half. A half character would decode as
+ * U+FFFD in the chat and, worse, change the hash the program computed from
+ * bytes the requester can no longer read as text.
+ */
 export function truncateOutput(bytes: Uint8Array): Uint8Array {
   if (bytes.length <= OUTPUT_MAX) return bytes;
-  const out = new Uint8Array(OUTPUT_MAX);
-  out.set(bytes.subarray(0, OUTPUT_MAX - MARKER.length));
-  out.set(MARKER, OUTPUT_MAX - MARKER.length);
+  let end = OUTPUT_MAX - MARKER.length;
+  // 0b10xxxxxx is a continuation byte: the cut would land inside a character.
+  while (end > 0 && (bytes[end] & 0xc0) === 0x80) end -= 1;
+  const out = new Uint8Array(end + MARKER.length);
+  out.set(bytes.subarray(0, end));
+  out.set(MARKER, end);
   return out;
 }
 

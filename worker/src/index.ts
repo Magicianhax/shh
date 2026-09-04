@@ -1,4 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
+import { PublicKey } from "@solana/web3.js";
 import nacl from "tweetnacl";
 import {
   baseConnection,
@@ -11,12 +12,39 @@ import {
   providerPda,
   assertTeeLive,
   TEE_URL,
+  type AnyProgram,
 } from "@inference-market/client";
 import { cfg } from "./config";
 import { findClaimable } from "./discover";
 import { runInference } from "./inference";
 import { reconcile } from "./reconcile";
-import { log } from "./log";
+import { log, redact } from "./log";
+
+/**
+ * Every job this provider is on the hook for, read back from the base layer.
+ *
+ * The reconcile set is otherwise built only from jobs submitted in this
+ * process, so a restart abandons every escrow the previous run left waiting for
+ * a scheduled action that never ran. Two `all()` calls rather than one fetch per
+ * job: the escrow's own `job` field is the join key.
+ */
+async function unpaidJobsOf(baseProgram: AnyProgram, wallet: PublicKey): Promise<string[]> {
+  const [jobs, escrows] = await Promise.all([
+    baseProgram.account.job.all(),
+    baseProgram.account.escrow.all(),
+  ]);
+  const unpaid = new Set<string>(
+    escrows
+      .filter((e: any) => !e.account.paid)
+      .map((e: any) => e.account.job.toBase58()),
+  );
+  return jobs
+    .filter(
+      (j: any) =>
+        j.account.provider.equals(wallet) && unpaid.has(j.publicKey.toBase58()),
+    )
+    .map((j: any) => j.publicKey.toBase58());
+}
 
 async function main() {
   await assertTeeLive();
@@ -39,6 +67,13 @@ async function main() {
   }
 
   const mine = new Set<string>();
+  try {
+    for (const key of await unpaidJobsOf(baseProgram, cfg.keypair.publicKey)) mine.add(key);
+    log("reconcile set rebuilt", { jobs: mine.size });
+  } catch (e) {
+    log("reconcile rebuild failed", { err: redact(e) });
+  }
+
   setInterval(
     () => reconcile(base, baseProgram, cfg.keypair.publicKey, mine).catch((e) => log("reconcile error", { err: String(e) })),
     cfg.reconcileMs,
@@ -67,6 +102,8 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error(e);
+  // Never print the raw error: an ER failure carries the TEE endpoint, and the
+  // endpoint carries the read auth token in its query string.
+  console.error(redact(e));
   process.exit(1);
 });
