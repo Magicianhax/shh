@@ -228,7 +228,13 @@ export function Jobs({ market }: { market: Market }) {
                     </>
                   ) : null}
 
-                  {status === "open" ? (
+                  {/*
+                    Two different cancels, and the layer decides which one. On the
+                    rollup, `cancel_job` is the only path out of Created or Open;
+                    on the base layer `cancel_job_base` is, and it takes
+                    `Account<Job>`, so calling it on a delegated job can only fail.
+                  */}
+                  {onEr && (status === "created" || status === "open") ? (
                     <button
                       type="button"
                       className="btn"
@@ -239,7 +245,7 @@ export function Jobs({ market }: { market: Market }) {
                     </button>
                   ) : null}
 
-                  {status === "created" ? (
+                  {!onEr && status === "created" ? (
                     <button
                       type="button"
                       className="btn"

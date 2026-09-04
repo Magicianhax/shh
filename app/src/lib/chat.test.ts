@@ -11,6 +11,7 @@ import {
   isEmptyAnswer,
   isLive,
   isPollable,
+  storeKey,
 } from "./chat";
 import type { ChatMsg } from "./chat";
 import { byteLen } from "./format";
@@ -109,4 +110,12 @@ test("isLive still reports settling as in flight for the UI", () => {
   assert.equal(isLive("settling"), true);
   assert.equal(isLive("settled"), false);
   assert.equal(isLive("decision_failed"), false);
+});
+
+test("the store key is namespaced by wallet, and absent without one", () => {
+  const a = "5vJRzKSjPnJ1nHDPfeSVsNu1nkcPuvcSFAqLZ9rD2fB1";
+  const b = "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin";
+  assert.equal(storeKey(a), `im.chat.v1.${a}`);
+  assert.notEqual(storeKey(a), storeKey(b));
+  assert.equal(storeKey(null), null);
 });

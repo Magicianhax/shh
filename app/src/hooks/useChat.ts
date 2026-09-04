@@ -63,7 +63,27 @@ export function useChat(market: Market) {
   const { base, er, router, validator, wallet, connection } = market;
   const owner = wallet.publicKey ?? null;
 
-  const [store, setStore] = useState<Store>(() => loadStore());
+  const ownerKey = owner?.toBase58() ?? null;
+
+  /**
+   * The store and the wallet it was loaded for, held as one value on purpose.
+   * A wallet switch changes both together, so the save effect can never write
+   * the previous wallet's conversations under the new wallet's key. With no
+   * wallet connected the store is empty and nothing is persisted.
+   */
+  const [loaded, setLoaded] = useState<{ owner: string | null; store: Store }>(() => ({
+    owner: ownerKey,
+    store: loadStore(ownerKey),
+  }));
+  if (loaded.owner !== ownerKey) {
+    setLoaded({ owner: ownerKey, store: loadStore(ownerKey) });
+  }
+  const store = loaded.store;
+  const setStore = useCallback(
+    (fn: (s: Store) => Store) => setLoaded((l) => ({ ...l, store: fn(l.store) })),
+    [],
+  );
+
   const [busy, setBusy] = useState(false);
   /** Message ids whose settle half is running in this session, right now. */
   const [settling, setSettling] = useState<Record<string, true>>({});
@@ -73,8 +93,8 @@ export function useChat(market: Market) {
   storeRef.current = store;
 
   useEffect(() => {
-    saveStore(store);
-  }, [store]);
+    saveStore(loaded.owner, loaded.store);
+  }, [loaded]);
 
   const active = useMemo(
     () => store.convs.find((c) => c.id === store.activeId) ?? null,
@@ -295,14 +315,23 @@ export function useChat(market: Market) {
    *
    * A scheduled Magic Action may pay the escrow on its own, so wait for that
    * before spending a signature: poll `Escrow.paid` for up to a minute, call
-   * `settleDirect` once if it is still unpaid, then check again.
+   * `settleDirect` once if it is still unpaid, then check again. When the
+   * decision scheduled no action, there is nothing to wait for and the wait is
+   * skipped entirely; a single `paid` check still runs first, because the
+   * provider's reconcile loop may already have settled it.
    *
    * Every step checks `alive(convId)` first. Leaving the chat or switching
    * conversation stops the run before it can prompt the wallet, and the message
    * stays in "settling" for the interrupted-settlement retry to pick up.
    */
   const settlePhase = useCallback(
-    async (convId: string, msgId: string, jobKey: string, kind: "approve" | "reject") => {
+    async (
+      convId: string,
+      msgId: string,
+      jobKey: string,
+      kind: "approve" | "reject",
+      scheduled: boolean,
+    ) => {
       if (!base || !owner) {
         patchMsg(convId, msgId, (m) => ({ ...m, settleError: "wallet not connected" }));
         return;
@@ -323,18 +352,27 @@ export function useChat(market: Market) {
         await waitForUndelegation(connection, job);
         if (!alive(convId)) return;
 
-        const deadline = Date.now() + SETTLE_WAIT_MS;
-        while (Date.now() < deadline) {
-          if (!alive(convId)) return;
-          if (await paid()) {
-            patchMsg(convId, msgId, (m) => ({
-              ...m,
-              state: kind === "approve" ? "settled" : "rejected",
-              settleError: null,
-            }));
-            return;
+        const settled = () => {
+          patchMsg(convId, msgId, (m) => ({
+            ...m,
+            state: kind === "approve" ? "settled" : "rejected",
+            settleError: null,
+          }));
+        };
+
+        if (scheduled) {
+          const deadline = Date.now() + SETTLE_WAIT_MS;
+          while (Date.now() < deadline) {
+            if (!alive(convId)) return;
+            if (await paid()) {
+              settled();
+              return;
+            }
+            await sleep(SETTLE_POLL_MS);
           }
-          await sleep(SETTLE_POLL_MS);
+        } else if (await paid()) {
+          settled();
+          return;
         }
 
         // The last check before a signature is requested.
@@ -343,11 +381,7 @@ export function useChat(market: Market) {
         patchMsg(convId, msgId, (m) => ({ ...m, sig }));
 
         if (await paid()) {
-          patchMsg(convId, msgId, (m) => ({
-            ...m,
-            state: kind === "approve" ? "settled" : "rejected",
-            settleError: null,
-          }));
+          settled();
           return;
         }
         patchMsg(convId, msgId, (m) => ({
@@ -374,7 +408,7 @@ export function useChat(market: Market) {
         .find((c) => c.id === convId)
         ?.messages.find((m) => m.id === msgId);
       if (!msg?.job || !msg.decision) return;
-      void settlePhase(convId, msgId, msg.job, msg.decision);
+      void settlePhase(convId, msgId, msg.job, msg.decision, msg.actionScheduled ?? false);
     },
     [settlePhase],
   );
@@ -397,26 +431,43 @@ export function useChat(market: Market) {
         state: "settling",
         decision: kind,
         decisionAttempted: true,
+        actionScheduled: funded,
         error: null,
         settleError: null,
       }));
 
+      let erSig: string | null = null;
       try {
-        await finishJob(er, owner, job, kind, funded);
+        const { commitSig } = await finishJob(er, owner, job, kind, funded, (s) => {
+          erSig = s;
+        });
+        patchMsg(convId, msgId, (m) => ({ ...m, erSig, commitSig }));
       } catch (e) {
-        // The decision never reached the rollup. Park it in its own state with a
-        // manual retry rather than back in "submitted", where auto-approve or a
-        // stray poll could fire it again.
+        const landed: string | null = erSig;
+        if (landed === null) {
+          // The decision never reached the rollup. Park it in its own state with a
+          // manual retry rather than back in "submitted", where auto-approve or a
+          // stray poll could fire it again.
+          patchMsg(convId, msgId, (m) => ({
+            ...m,
+            state: "decision_failed",
+            error: errText(e),
+          }));
+          return;
+        }
+        // The rollup accepted the decision; only the commitment lookup failed.
+        // The money is already moving, so this must not go back to a state that
+        // re-sends it. Stay in "settling" with the commit recorded as unknown.
         patchMsg(convId, msgId, (m) => ({
           ...m,
-          state: "decision_failed",
-          error: errText(e),
+          erSig: landed,
+          commitSig: null,
+          settleError: null,
         }));
-        return;
       }
 
       if (!alive(convId)) return;
-      await settlePhase(convId, msgId, msg.job, kind);
+      await settlePhase(convId, msgId, msg.job, kind, funded);
     },
     [alive, er, owner, patchMsg, settlePhase],
   );

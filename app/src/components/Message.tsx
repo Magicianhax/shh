@@ -49,7 +49,13 @@ export function Message({ msg, now, busy, settleRunning, onDecide, onRetrySettle
    * because that would prompt the wallet without the user asking.
    */
   const interrupted = settling && !settleRunning;
-  const canRetrySettle = settling && Boolean(msg.decision);
+  /**
+   * Also offered from "decision_failed". The decision can be on chain even when
+   * `finishJob` threw, and in that case re-sending it is the wrong move: the
+   * only thing left to do is settle the escrow.
+   */
+  const canRetrySettle =
+    (settling || msg.state === "decision_failed") && Boolean(msg.decision);
 
   const openAt = msg.deadlineUnix ? (msg.deadlineUnix + AUTO_APPROVE_SECS) * 1000 : null;
   const openInMin = openAt ? Math.max(0, Math.round((openAt - now) / 60000)) : null;

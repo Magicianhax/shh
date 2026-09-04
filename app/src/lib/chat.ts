@@ -30,6 +30,19 @@ export type ChatMsg = {
   priceLamports?: number;
   /** Settlement signature, once there is one. */
   sig?: string | null;
+  /** Rollup signature of the decision transaction, once the ER accepted it. */
+  erSig?: string | null;
+  /**
+   * Base-layer commitment signature for that decision, or `null` when the ER
+   * accepted the decision but the commitment lookup failed. Null means unknown,
+   * not absent: the decision is on chain either way.
+   */
+  commitSig?: string | null;
+  /**
+   * Whether the decision scheduled a `settle_action`. False means nothing will
+   * pay the escrow on its own, so the settle half must not sit and wait.
+   */
+  actionScheduled?: boolean;
   answeredMs?: number | null;
   deadlineUnix?: number;
   /**
@@ -78,7 +91,17 @@ export const PREAMBLE_BYTES = byteLen(`${PREAMBLE}\n\n`);
  */
 export const DRAFT_MAX = PROMPT_MAX - PREAMBLE_BYTES - byteLen("User: ") - 2;
 
-const STORE_KEY = "im.chat.v1";
+const STORE_PREFIX = "im.chat.v1";
+
+/**
+ * Conversations belong to a wallet, not to a browser profile. Two people
+ * sharing a machine, or one person switching accounts, must not see each
+ * other's prompts, and the jobs behind those turns are only settleable by the
+ * wallet that posted them. With no wallet connected there is no key and so no
+ * history.
+ */
+export const storeKey = (owner: string | null): string | null =>
+  owner ? `${STORE_PREFIX}.${owner}` : null;
 
 export type Store = { convs: Conversation[]; activeId: string | null };
 
@@ -96,14 +119,16 @@ export const newConversation = (): Conversation => ({
 });
 
 /**
- * Conversations live in this browser only. The prompt and the answer are the
- * user's own words, already on their screen; nothing here is sent anywhere, and
- * the on-chain buffers are still wiped at approval regardless of what this
- * cache holds.
+ * Conversations live in this browser only, under the connected wallet's key.
+ * The prompt and the answer are the user's own words, already on their screen;
+ * nothing here is sent anywhere, and the on-chain buffers are still wiped at
+ * approval regardless of what this cache holds.
  */
-export function loadStore(): Store {
+export function loadStore(owner: string | null): Store {
+  const key = storeKey(owner);
+  if (!key) return emptyStore();
   try {
-    const raw = window.localStorage.getItem(STORE_KEY);
+    const raw = window.localStorage.getItem(key);
     if (!raw) return emptyStore();
     const parsed = JSON.parse(raw) as Store;
     if (!Array.isArray(parsed?.convs)) return emptyStore();
@@ -113,9 +138,11 @@ export function loadStore(): Store {
   }
 }
 
-export function saveStore(store: Store) {
+export function saveStore(owner: string | null, store: Store) {
+  const key = storeKey(owner);
+  if (!key) return;
   try {
-    window.localStorage.setItem(STORE_KEY, JSON.stringify(store));
+    window.localStorage.setItem(key, JSON.stringify(store));
   } catch {
     /* private mode, quota, or blocked storage: the session still works */
   }
