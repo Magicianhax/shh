@@ -9,7 +9,7 @@ Spec: docs/superpowers/specs/2026-09-04-private-inference-network-design.md
 - [x] Task 3 register_provider + create_job
 - [x] Task 4 delegate instructions
 - [x] Task 5 ER instructions (permissions, prompt, claim, output)
-- [ ] Task 6 terminal instructions + settle + close_job
+- [x] Task 6 terminal instructions + settle + close_job
 - [ ] Task 7 devnet deploy
 - [ ] Task 8 TS client library
 - [ ] Task 9 devnet e2e test
