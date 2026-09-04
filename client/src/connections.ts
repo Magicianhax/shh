@@ -41,8 +41,11 @@ export async function authedTeeConnection(
   signMessage: (message: Uint8Array) => Promise<Uint8Array>,
 ): Promise<AuthedTeeConnection> {
   const { token, expiresAt } = await getAuthToken(teeUrl, pubkey, signMessage);
-  const http = `${teeUrl}?token=${token}`;
-  const ws = `${teeUrl.replace(/^http/, "ws")}?token=${token}`;
+  // The endpoint may already carry a query string; appending a second "?" would
+  // make the token part of the previous parameter's value.
+  const sep = teeUrl.includes("?") ? "&" : "?";
+  const http = `${teeUrl}${sep}token=${token}`;
+  const ws = `${teeUrl.replace(/^http/, "ws")}${sep}token=${token}`;
   return {
     connection: new Connection(http, { wsEndpoint: ws, commitment: "confirmed" }),
     token,

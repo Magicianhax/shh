@@ -344,6 +344,13 @@ export async function finishJob(
   job: PublicKey,
   kind: FinishKind,
   scheduleAction: boolean,
+  /**
+   * Called with the rollup signature the moment the decision is accepted, before
+   * the commitment signature is looked up. The lookup can fail on a decision
+   * that already landed, and a caller that only sees the throw cannot tell the
+   * two apart; this callback is how it learns the decision is on chain.
+   */
+  onErSignature?: (sig: string) => void,
 ): Promise<{ erSig: string; commitSig: string }> {
   const j: any = await er.account.job.fetch(job);
   const claimed = !j.provider.equals(PublicKey.default);
@@ -366,6 +373,7 @@ export async function finishJob(
     expire: er.methods.expireJob,
   }[kind];
   const sig: string = await erRpc(er, m(scheduleAction).accounts(accounts));
+  onErSignature?.(sig);
   const commitSig = await GetCommitmentSignature(sig, er.provider.connection);
   return { erSig: sig, commitSig };
 }
