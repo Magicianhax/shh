@@ -21,6 +21,9 @@ pub struct SettleAction<'info> {
     /// CHECK: validated == job.provider when paying provider.
     #[account(mut)]
     pub provider_wallet: UncheckedAccount<'info>,
+    /// CHECK: program that scheduled the action; the delegation program appends it before escrow_auth/escrow.
+    #[account(address = crate::ID @ MarketError::Unauthorized)]
+    pub source_program: UncheckedAccount<'info>,
     /// CHECK: payer identity the action was scheduled with.
     pub escrow_auth: UncheckedAccount<'info>,
     /// CHECK: only the delegation program can sign for this PDA; proves the post-commit path.
