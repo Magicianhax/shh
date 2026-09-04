@@ -215,7 +215,23 @@ npm run test:devnet
 ```
 
 Run the provider worker, after copying `worker/.env.example` to `worker/.env`
-and filling in a funded keypair path and an inference API key:
+and filling in a funded keypair path and an inference API key. `INFERENCE_PROVIDER`
+selects the backend:
+
+- `anthropic` — `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`.
+- `openai` — `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_BASE_URL`.
+- `ollama` — `OLLAMA_MODEL` (default `llama3.2:1b`), `OLLAMA_BASE_URL` (default
+  `http://127.0.0.1:11434/v1`). No API key is needed since Ollama serves
+  locally with no auth. Install and pull a model first:
+
+  ```bash
+  curl -fsSL https://ollama.com/install.sh | sh
+  ollama pull llama3.2:1b
+  ```
+
+Whichever backend you pick, set `MODEL_LABEL` to whatever requesters must put
+in a job's model label for this worker to claim it — the two must match
+exactly.
 
 ```bash
 npm --workspace worker start

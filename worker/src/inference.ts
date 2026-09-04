@@ -5,7 +5,7 @@ const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
 
 export type InferenceOptions = {
-  provider: "anthropic" | "openai";
+  provider: "anthropic" | "openai" | "ollama";
   apiKey: string;
   model: string;
   maxTokens: number;
@@ -31,18 +31,25 @@ export function truncateOutput(bytes: Uint8Array): Uint8Array {
   return out;
 }
 
-async function runOpenAI(
+/**
+ * Shared request path for OpenAI-compatible chat-completions backends
+ * (OpenAI itself, and Ollama's OpenAI-compatible endpoint). The only
+ * difference between the two is whether an Authorization header is sent:
+ * Ollama needs no key, so an empty apiKey omits the header entirely.
+ */
+async function openAiCompatible(
   prompt: string,
   o: InferenceOptions,
   f: typeof fetch,
+  defaultBaseUrl: string,
+  label: string,
 ): Promise<string> {
-  const base = (o.baseUrl ?? "https://api.openai.com/v1").replace(/\/+$/, "");
+  const base = (o.baseUrl ?? defaultBaseUrl).replace(/\/+$/, "");
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (o.apiKey) headers.Authorization = `Bearer ${o.apiKey}`;
   const res = await f(`${base}/chat/completions`, {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      Authorization: `Bearer ${o.apiKey}`,
-    },
+    headers,
     body: JSON.stringify({
       model: o.model,
       messages: [{ role: "user", content: prompt }],
@@ -51,7 +58,7 @@ async function runOpenAI(
     }),
   });
   // Never surface the response body: it can echo the prompt back.
-  if (!res.ok) throw new Error(`inference backend (openai) ${res.status}`);
+  if (!res.ok) throw new Error(`inference backend (${label}) ${res.status}`);
   const j: any = await res.json();
   return j.choices?.[0]?.message?.content ?? "";
 }
@@ -94,7 +101,13 @@ export async function runInference(
   o: InferenceOptions,
   f: typeof fetch = fetch,
 ): Promise<Uint8Array> {
-  const text =
-    o.provider === "openai" ? await runOpenAI(prompt, o, f) : await runAnthropic(prompt, o, f);
+  let text: string;
+  if (o.provider === "openai") {
+    text = await openAiCompatible(prompt, o, f, "https://api.openai.com/v1", "openai");
+  } else if (o.provider === "ollama") {
+    text = await openAiCompatible(prompt, o, f, "http://127.0.0.1:11434/v1", "ollama");
+  } else {
+    text = await runAnthropic(prompt, o, f);
+  }
   return truncateOutput(new TextEncoder().encode(text));
 }

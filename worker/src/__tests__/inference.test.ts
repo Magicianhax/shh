@@ -48,6 +48,34 @@ test("runInference (openai) posts chat/completions and returns bytes", async () 
   assert.equal(Buffer.from(bytes).toString(), "bonjour");
 });
 
+test("runInference (ollama) posts to the OpenAI-compatible endpoint with no auth header", async () => {
+  let seenUrl = "";
+  let seenHeaders: Record<string, string> = {};
+  const fakeFetch: typeof fetch = async (u, init) => {
+    seenUrl = String(u);
+    seenHeaders = Object.fromEntries(
+      Object.entries((init!.headers as Record<string, string>) ?? {}),
+    );
+    const body = JSON.parse(String(init!.body));
+    assert.equal(body.model, "llama3.2:1b");
+    assert.equal(body.messages[0].role, "user");
+    assert.equal(body.messages[0].content, "hi");
+    assert.equal(body.max_tokens, 256);
+    assert.equal(body.stream, false);
+    return new Response(JSON.stringify({ choices: [{ message: { content: "bonjour" } }] }), {
+      status: 200,
+    });
+  };
+  const bytes = await runInference(
+    "hi",
+    { provider: "ollama", apiKey: "", model: "llama3.2:1b", maxTokens: 256 },
+    fakeFetch,
+  );
+  assert.equal(seenUrl, "http://127.0.0.1:11434/v1/chat/completions");
+  assert.equal(seenHeaders["Authorization"], undefined);
+  assert.equal(Buffer.from(bytes).toString(), "bonjour");
+});
+
 test("runInference (anthropic) posts Messages API and returns bytes", async () => {
   let seenUrl = "";
   let seenHeaders: Record<string, string> = {};

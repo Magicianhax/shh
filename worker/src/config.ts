@@ -11,8 +11,10 @@ const req = (k: string): string => {
 
 function buildInferenceOptions(): InferenceOptions {
   const provider = req("INFERENCE_PROVIDER");
-  if (provider !== "anthropic" && provider !== "openai") {
-    throw new Error(`INFERENCE_PROVIDER must be "anthropic" or "openai", got "${provider}"`);
+  if (provider !== "anthropic" && provider !== "openai" && provider !== "ollama") {
+    throw new Error(
+      `INFERENCE_PROVIDER must be one of "anthropic", "openai", "ollama", got "${provider}"`,
+    );
   }
   const maxTokens = Number(process.env.MAX_OUTPUT_TOKENS ?? 1024);
   if (provider === "anthropic") {
@@ -21,6 +23,15 @@ function buildInferenceOptions(): InferenceOptions {
       apiKey: req("ANTHROPIC_API_KEY"),
       model: req("ANTHROPIC_MODEL"),
       maxTokens,
+    };
+  }
+  if (provider === "ollama") {
+    return {
+      provider,
+      apiKey: process.env.OLLAMA_API_KEY ?? "",
+      model: process.env.OLLAMA_MODEL ?? "llama3.2:1b",
+      maxTokens,
+      baseUrl: process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434/v1",
     };
   }
   return {
