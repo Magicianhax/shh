@@ -16,7 +16,7 @@ cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "npx tsx --test tests/inference_market.ts"
+test = "node node_modules/tsx/dist/cli.mjs --test tests/inference_market.ts"
 
 [hooks]
 
