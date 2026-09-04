@@ -287,7 +287,7 @@ function editorial(){
   const j=S.jobs[S.sel];
   const pipe=x=>STAGES.map((_,i)=>`<i ${i<x.stage?"data-on":""} ${i===x.stage?(x.rejected?"data-bad":"data-now"):""}></i>`).join("");
   return `<div class="ed">
-  <div class="top"><div class="brand"><i></i>Shh.ai</div><div class="nav"><b>Requester</b><span>Provider</span><span>Docs</span></div><div class="wallet">5GD6…hkjV · 6.69 SOL</div></div>
+  <div class="top"><div class="brand"><i></i>Shh</div><div class="nav"><b>Requester</b><span>Provider</span><span>Docs</span></div><div class="wallet">5GD6…hkjV · 6.69 SOL</div></div>
   <section class="hero rise"><h1>Private inference,<br><span>settled on Solana.</span></h1>
    <div class="stats"><div class="stat"><b class="tnum">41<small style="display:inline;font-size:18px;text-transform:none;letter-spacing:0"> ms</small></b><small>rollup latency</small></div><div class="stat"><b class="tnum">128</b><small>jobs settled</small></div><div class="stat"><b class="tnum">0.92</b><small>SOL paid out</small></div></div></section>
   <section class="compose rise">
@@ -346,7 +346,7 @@ function ledger(){
   const j=S.jobs[S.sel];
   const fee=0.000005;
   return `<div class="lg">
-  <div class="top"><span class="brand">Shh.ai</span><div class="meta"><span>Account <b>5GD6…hkjV</b></span><span>Balance <b>6.690 SOL</b></span><span>Network <b>Solana devnet · TEE rollup</b></span></div></div>
+  <div class="top"><span class="brand">Shh</span><div class="meta"><span>Account <b>5GD6…hkjV</b></span><span>Balance <b>6.690 SOL</b></span><span>Network <b>Solana devnet · TEE rollup</b></span></div></div>
   <div class="wrap"><div>
    <h1 class="rise">Ask privately.<br>Pay <em>only</em> when satisfied.</h1>
    <p class="lede rise">Your prompt is sealed inside a trusted rollup. A provider claims it, answers, and the escrow settles on Solana the moment you approve.</p>

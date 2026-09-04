@@ -347,4 +347,4 @@ tasks/todo.md                      implementation plan (next step)
   (https://claude.ai/code/artifact/a48fd524-3dd6-4920-820c-e8b577dcbe7f): warm off-white, one sage-teal
   accent, Bricolage Grotesque display, Instrument Sans body, JetBrains Mono data. Routes: / landing,
   /chat (default), /jobs (ledger + detail), /provider.
-- Product name: Shh.ai (user, 2026-09-04); slogan: The chain sees the money, never the words.
+- Product name: Shh (user, 2026-09-04); slogan: The chain sees the money, never the words.

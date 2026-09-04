@@ -1,4 +1,4 @@
-# Shh.ai
+# Shh
 
 The chain sees the money, never the words.
 

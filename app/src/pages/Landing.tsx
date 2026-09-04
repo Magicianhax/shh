@@ -36,7 +36,7 @@ export function Landing() {
         <div className="nav">
           <span className="brand">
             <Mark size={26} />
-            Shh.ai
+            Shh
           </span>
           <div className="nav-links">
             <a href="#/chat">Product</a>
@@ -284,7 +284,7 @@ export function Landing() {
         </div>
 
         <div className="foot">
-          <span>Shh.ai · Solana devnet · MagicBlock TEE rollup</span>
+          <span>Shh · Solana devnet · MagicBlock TEE rollup</span>
           <span className="mono">Sample figures above are illustrative, not on-chain reads.</span>
         </div>
       </div>
