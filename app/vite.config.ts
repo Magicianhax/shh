@@ -23,7 +23,7 @@ export default defineConfig({
         // Anchor plus web3.js dwarfs the app itself; splitting them keeps the
         // UI chunk small enough to re-download on its own after an edit.
         manualChunks: {
-          react: ["react", "react-dom"],
+          react: ["react", "react-dom", "framer-motion"],
           solana: ["@solana/web3.js", "@coral-xyz/anchor"],
         },
       },

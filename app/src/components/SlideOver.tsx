@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import type { ReactNode } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { EASE_OUT, fast } from "../motion";
 
 type Props = {
   open: boolean;
@@ -8,38 +10,12 @@ type Props = {
   children: ReactNode;
 };
 
-/** How long the panel takes to slide out, matched to the CSS transition. */
-const EXIT_MS = 280;
-
 /**
- * Right-hand slide-over over a blurred scrim. Stays mounted for the length of
- * the exit transition so closing animates instead of snapping. Escape and a
- * scrim click both close it, and the page behind it stops scrolling while it
- * is open.
+ * Right-hand slide-over over a blurred scrim. Framer Motion owns the enter and
+ * exit; the panel only ever translates. Escape and a scrim click both close it,
+ * and the page behind it stops scrolling while it is open.
  */
 export function SlideOver({ open, onClose, label, children }: Props) {
-  const [mounted, setMounted] = useState(open);
-  const [shown, setShown] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      setMounted(true);
-      // Two frames: one to commit the mounted markup, one to flip the class so
-      // the transition has a starting value to move from.
-      let inner = 0;
-      const outer = requestAnimationFrame(() => {
-        inner = requestAnimationFrame(() => setShown(true));
-      });
-      return () => {
-        cancelAnimationFrame(outer);
-        cancelAnimationFrame(inner);
-      };
-    }
-    setShown(false);
-    const id = window.setTimeout(() => setMounted(false), EXIT_MS);
-    return () => window.clearTimeout(id);
-  }, [open]);
-
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -54,24 +30,36 @@ export function SlideOver({ open, onClose, label, children }: Props) {
     };
   }, [open, onClose]);
 
-  if (!mounted) return null;
-
   return (
-    <>
-      <button
-        type="button"
-        className={`scrim${shown ? " in" : ""}`}
-        aria-label="Close panel"
-        onClick={onClose}
-      />
-      <aside
-        className={`sheet${shown ? " in" : ""}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label={label}
-      >
-        {children}
-      </aside>
-    </>
+    <AnimatePresence>
+      {open ? (
+        <>
+          <motion.button
+            key="scrim"
+            type="button"
+            className="scrim"
+            aria-label="Close panel"
+            onClick={onClose}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={fast}
+          />
+          <motion.aside
+            key="sheet"
+            className="sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label={label}
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ duration: 0.28, ease: EASE_OUT }}
+          >
+            {children}
+          </motion.aside>
+        </>
+      ) : null}
+    </AnimatePresence>
   );
 }

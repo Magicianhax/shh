@@ -1,4 +1,7 @@
+import { forwardRef } from "react";
+import { motion } from "framer-motion";
 import { JobTimeline } from "./JobTimeline";
+import { riseIn, springy } from "../motion";
 import type { JobRow } from "../hooks/useJobs";
 import { countdown, labelText, num, solText } from "../lib/format";
 
@@ -11,14 +14,36 @@ type Props = {
   onSelect: () => void;
 };
 
-export function JobCard({ row, selected, now, paid, onSelect }: Props) {
+/**
+ * `forwardRef` is required, not cosmetic: `AnimatePresence mode="popLayout"`
+ * wraps each child in a measuring component that needs a ref on the DOM node.
+ * Without it React warns and the exit animation cannot measure the card.
+ */
+export const JobCard = forwardRef<HTMLButtonElement, Props>(function JobCard(
+  { row, selected, now, paid, onSelect },
+  ref,
+) {
   const job = row.account;
   const model = labelText(job.modelLabel) || "unlabelled model";
   const msLeft = num(job.deadlineUnix) * 1000 - now;
   const urgent = msLeft > 0 && msLeft < 5 * 60_000;
 
   return (
-    <button type="button" className="card" aria-selected={selected} onClick={onSelect}>
+    <motion.button
+      ref={ref}
+      type="button"
+      className="card"
+      aria-selected={selected}
+      onClick={onSelect}
+      layout
+      variants={riseIn}
+      initial="hidden"
+      animate="show"
+      exit="exit"
+      whileHover={{ y: -3 }}
+      whileTap={{ scale: 0.995 }}
+      transition={springy}
+    >
       <div className="card-top">
         <span className="card-model">{model}</span>
         <span className="card-price">
@@ -34,6 +59,6 @@ export function JobCard({ row, selected, now, paid, onSelect }: Props) {
       </div>
 
       <JobTimeline job={job} paid={paid} />
-    </button>
+    </motion.button>
   );
-}
+});

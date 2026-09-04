@@ -5,37 +5,41 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
-    <meta name="theme-color" content="#08090d" />
+    <meta name="theme-color" content="#0b0c10" />
     <meta
       name="description"
-      content="Post private inference jobs to a TEE ephemeral rollup and watch them settle on Solana devnet."
+      content="Private inference, settled on Solana. Post a prompt to a TEE rollup, pay the provider only when you approve the answer."
     />
     <title>Inference Market</title>
   </head>
   <body>
     <!--
-      DIRECTION CONTRACT — seed key: brief-pinned/2026-09-04 (no roll; the user
-      pinned the world, and a pinned direction beats the roll).
+      DIRECTION CONTRACT — seed key: brief-pinned/2026-09-04-r2 (no roll; the
+      user pinned the world, and a pinned direction beats the roll).
 
-      THESIS: The sealed state is the product. This refuses the admin table that
-      every job board ships: no rows, no sortable columns, no split list-detail.
+      THESIS: An inference provider's product site where the sealed state is the
+      product. It refuses the admin console every job board ships: no rows, no
+      sortable columns, no split list-detail, no sidebar.
 
-      OWN-WORLD: Near-black graphite ground, raised panels at #12141b, hairline
-      borders, one vivid violet (#6d4dfa) spent only on the live lifecycle step,
-      the primary action and the seal. Status hues stay quieter than the accent.
-      System stack, tight display type, one restrained accent glow behind the
-      header and nowhere else.
+      OWN-WORLD: Near-black #0b0c10 ground, panels at #14161c, hairline borders,
+      one violet (#8b5cf6, filled as #7c3aed) spent only on the live lifecycle
+      step, the primary action, the tab underline and the seal. Status hues stay
+      quieter than the accent. System stack on a 14/16/20/28/40 scale, 8-pt
+      spacing, and exactly one soft radial glow, behind the hero.
 
-      STORY: The requester writes a prompt, watches four steps carry it into the
-      enclave, sees the job's whole life on one rail, breaks the seal on the
-      answer, and approves.
+      STORY: A visitor reads what the market does from an animated schematic,
+      connects a wallet, writes a prompt in a chat-shaped box, watches four
+      measured steps carry it into the enclave, sees each job's whole life on one
+      rail, breaks the seal on the answer, and approves.
 
-      FIRST VIEWPORT: Header strip with the mark, the live TEE beacon, balance
-      and wallet. Under it the composer: a large prompt field with a byte meter
-      on the left, model, price and deadline segments plus "Publish privately"
-      on the right. Then the job cards.
+      FIRST VIEWPORT: Compact top bar. Then the hero: headline, one-line
+      explainer, "Connect wallet", the Requester to TEE rollup to Provider to
+      Settled schematic with flowing dashed wires and a pulsing enclave, and
+      three value props.
 
-      FORM: Card grid plus right-hand slide-over.
+      FORM: Landing hero collapsing into an app shell; card grid plus right-hand
+      slide-over. Motion by Framer Motion; transform, opacity, filter and
+      stroke-dashoffset only.
 
       FINISH: two batched inspection rounds, desktop and mobile, plus a clean
       design-detector pass. The shipped finish-reviewer and documenter subagents

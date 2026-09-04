@@ -1,8 +1,10 @@
-import { useState } from "react";
 import type { ReactNode } from "react";
+import { motion } from "framer-motion";
+import { HashChip } from "./HashChip";
 import { JobTimeline } from "./JobTimeline";
 import { StatusPill } from "./StatusPill";
-import { CheckIcon, CloseIcon, CopyIcon, LinkIcon } from "./icons";
+import { CloseIcon, LinkIcon } from "./icons";
+import { EASE_OUT } from "../motion";
 import type { JobRow } from "../hooks/useJobs";
 import {
   countdown,
@@ -17,25 +19,6 @@ import {
 } from "../lib/format";
 
 export type EscrowView = { amount: { toString(): string }; paid: boolean } | null;
-
-function Copy({ text, label }: { text: string; label: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      className="iconbtn"
-      aria-label={copied ? `${label} copied` : `Copy ${label}`}
-      onClick={() => {
-        void navigator.clipboard?.writeText(text).then(() => {
-          setCopied(true);
-          window.setTimeout(() => setCopied(false), 1400);
-        });
-      }}
-    >
-      {copied ? <CheckIcon /> : <CopyIcon />}
-    </button>
-  );
-}
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -66,6 +49,12 @@ export function JobDetail({ row, escrow, now, onClose, result, actions }: Props)
   const address = row.publicKey.toBase58();
   const claimed = !isUnset(job.provider);
 
+  const block = (i: number) => ({
+    initial: { opacity: 0, y: 10 },
+    animate: { opacity: 1, y: 0 },
+    transition: { delay: 0.06 + i * 0.05, duration: 0.3, ease: EASE_OUT },
+  });
+
   return (
     <>
       <header className="sheet-head">
@@ -83,25 +72,24 @@ export function JobDetail({ row, escrow, now, onClose, result, actions }: Props)
       </header>
 
       <div className="sheet-body">
-        <div className="block">
+        <motion.div className="block" {...block(0)}>
           <JobTimeline job={job} paid={escrow?.paid} />
-        </div>
+        </motion.div>
 
-        <div className="block">
+        <motion.div className="block" {...block(1)}>
           <div className="block-head">
             <h3>Result</h3>
           </div>
           {result}
-        </div>
+        </motion.div>
 
-        <div className="block">
+        <motion.div className="block" {...block(2)}>
           <div className="block-head">
             <h3>Record</h3>
           </div>
           <div className="facts">
             <Fact label="Job account">
-              <code className="mono">{shortKey(address, 6)}</code>
-              <Copy text={address} label="job address" />
+              <HashChip text={shortKey(address, 6)} full={address} label="job address" />
               <a
                 className="iconbtn"
                 href={explorerAddress(address)}
@@ -124,19 +112,39 @@ export function JobDetail({ row, escrow, now, onClose, result, actions }: Props)
             </Fact>
 
             <Fact label="Requester">
-              <code className="mono">{shortKey(job.requester, 6)}</code>
-              <Copy text={job.requester.toBase58()} label="requester" />
+              <HashChip
+                text={shortKey(job.requester, 6)}
+                full={job.requester.toBase58()}
+                label="requester"
+              />
             </Fact>
 
             <Fact label="Provider">
               {claimed ? (
-                <>
-                  <code className="mono">{shortKey(job.provider, 6)}</code>
-                  <Copy text={job.provider.toBase58()} label="provider" />
-                </>
+                <HashChip
+                  text={shortKey(job.provider, 6)}
+                  full={job.provider.toBase58()}
+                  label="provider"
+                />
               ) : (
                 <span className="muted">unclaimed</span>
               )}
+            </Fact>
+
+            <Fact label="Prompt hash">
+              <HashChip
+                text={hexPreview(job.promptHash)}
+                full={hexFull(job.promptHash)}
+                label="prompt hash"
+              />
+            </Fact>
+
+            <Fact label="Output hash">
+              <HashChip
+                text={hexPreview(job.outputHash)}
+                full={hexFull(job.outputHash)}
+                label="output hash"
+              />
             </Fact>
 
             <Fact label="Deadline">
@@ -146,18 +154,8 @@ export function JobDetail({ row, escrow, now, onClose, result, actions }: Props)
             <Fact label="Submitted">
               <span>{timeText(job.submittedAt)}</span>
             </Fact>
-
-            <Fact label="Prompt hash">
-              <code className="mono">{hexPreview(job.promptHash)}</code>
-              <Copy text={hexFull(job.promptHash)} label="prompt hash" />
-            </Fact>
-
-            <Fact label="Output hash">
-              <code className="mono">{hexPreview(job.outputHash)}</code>
-              <Copy text={hexFull(job.outputHash)} label="output hash" />
-            </Fact>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {actions ? <div className="sheet-foot">{actions}</div> : null}

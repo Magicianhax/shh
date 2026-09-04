@@ -1,5 +1,8 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { CloseIcon } from "./components/icons";
+import { springy } from "./motion";
 
 export type Tone = "ok" | "err" | "info";
 
@@ -9,7 +12,7 @@ type Notify = (tone: Tone, title: string, body?: string) => void;
 
 const NotifyContext = createContext<Notify>(() => {});
 
-/** Read-only hook for pushing a toast. Callers pass already-sanitised text. */
+/** Push a toast. Callers pass already-sanitised text. */
 export const useNotify = (): Notify => useContext(NotifyContext);
 
 const LIFETIME_MS = 9000;
@@ -37,28 +40,30 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <NotifyContext.Provider value={value}>
       {children}
       <div className="toasts" role="status" aria-live="polite">
-        {toasts.map((t) => (
-          <div key={t.id} className={`toast ${t.tone}`}>
-            <strong>{t.title}</strong>
-            <button
-              type="button"
-              className="iconbtn"
-              onClick={() => dismiss(t.id)}
-              aria-label="Dismiss"
+        <AnimatePresence initial={false}>
+          {toasts.map((t) => (
+            <motion.div
+              key={t.id}
+              className={`toast ${t.tone}`}
+              layout
+              initial={{ opacity: 0, y: 16, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 24, scale: 0.96 }}
+              transition={springy}
             >
-              <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-                <path
-                  d="M2.5 2.5l7 7m0-7l-7 7"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
-            {t.body ? <p>{t.body}</p> : null}
-          </div>
-        ))}
+              <strong>{t.title}</strong>
+              <button
+                type="button"
+                className="iconbtn"
+                onClick={() => dismiss(t.id)}
+                aria-label="Dismiss"
+              >
+                <CloseIcon size={12} />
+              </button>
+              {t.body ? <p>{t.body}</p> : null}
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
     </NotifyContext.Provider>
   );

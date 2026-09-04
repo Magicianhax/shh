@@ -63,11 +63,37 @@ export const UnlockIcon = ({ size = 13 }: Props) => (
   </svg>
 );
 
+export const PlusIcon = ({ size = 13 }: Props) => (
+  <svg {...base(size)}>
+    <path d="M8 3.6v8.8M3.6 8h8.8" />
+  </svg>
+);
+
+export const MinusIcon = ({ size = 13 }: Props) => (
+  <svg {...base(size)}>
+    <path d="M3.6 8h8.8" />
+  </svg>
+);
+
+export const CoinIcon = ({ size = 18 }: Props) => (
+  <svg {...base(size)}>
+    <ellipse cx="8" cy="4.4" rx="5.2" ry="2.2" />
+    <path d="M2.8 4.4v7.2c0 1.2 2.33 2.2 5.2 2.2s5.2-1 5.2-2.2V4.4" />
+    <path d="M2.8 8c0 1.22 2.33 2.2 5.2 2.2s5.2-.98 5.2-2.2" />
+  </svg>
+);
+
+export const BoltIcon = ({ size = 18 }: Props) => (
+  <svg {...base(size)}>
+    <path d="M8.9 1.6 3.4 9.1h4l-.3 5.3 5.5-7.5h-4z" />
+  </svg>
+);
+
 /**
  * Three rising bars: a job entering the rollup and coming out settled. The only
  * mark on the page, so it carries the accent.
  */
-export const Wordmark = ({ size = 36 }: Props) => (
+export const Wordmark = ({ size = 28 }: Props) => (
   <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
     <rect width="32" height="32" rx="9" fill="var(--accent)" />
     <path
