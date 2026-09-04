@@ -52,7 +52,19 @@ pub fn run(ctx: Context<FinishJob>, to: JobStatus, schedule_action: bool) -> Res
 
     // Authorization
     match to {
-        JobStatus::Approved | JobStatus::Rejected | JobStatus::Cancelled => {
+        // Normally requester-only. Once a Submitted job is AUTO_APPROVE_SECS past
+        // its deadline, approval becomes permissionless: otherwise a requester who
+        // never comes back locks the escrow forever, since no other transition out
+        // of Submitted exists.
+        JobStatus::Approved => {
+            let job = &ctx.accounts.job;
+            let auto_approvable = job.status == JobStatus::Submitted
+                && now >= job.deadline_unix.saturating_add(AUTO_APPROVE_SECS);
+            if !auto_approvable {
+                require_keys_eq!(signer, job.requester, MarketError::Unauthorized);
+            }
+        }
+        JobStatus::Rejected | JobStatus::Cancelled => {
             require_keys_eq!(signer, ctx.accounts.job.requester, MarketError::Unauthorized);
         }
         JobStatus::Expired => {}

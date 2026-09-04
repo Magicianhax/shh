@@ -117,9 +117,42 @@ test("settle_direct refuses a delegated job", async () => {
     }).rpc(), /JobStillDelegated/);
 });
 
-test("close_job refuses an unpaid escrow", async () => {
-  const job = jobPda(wallet.publicKey, 3n);
+test("base-layer cancel, settle_direct, and close_job settle a never-delegated job", async () => {
+  const nonce = 4n;
+  const job = jobPda(wallet.publicKey, nonce);
+  const jp = jobPrivatePda(job);
+  const escrow = escrowPda(job);
+  const price = 0.01 * LAMPORTS_PER_SOL;
+
+  await program.methods.createJob(new anchor.BN(nonce.toString()), new anchor.BN(price), new anchor.BN(Math.floor(Date.now()/1000)+3600), label("x"))
+    .accounts({ requester: wallet.publicKey, job, jobPrivate: jp, escrow, systemProgram: SystemProgram.programId }).rpc();
+
+  // A job that was never delegated still has a base-layer exit.
+  await program.methods.cancelJobBase().accounts({ requester: wallet.publicKey, job }).rpc();
+  const cancelled: any = await program.account.job.fetch(job);
+  assert.deepEqual(cancelled.status, { cancelled: {} });
+
+  // Terminal but unpaid: close_job must fail on the escrow check specifically.
+  const settleAccounts = {
+    payer: wallet.publicKey, jobEscrow: escrow, job,
+    providerAccount: wallet.publicKey, requesterWallet: wallet.publicKey, providerWallet: wallet.publicKey,
+  };
   await assert.rejects(
-    program.methods.closeJob().accounts({ requester: wallet.publicKey, job, jobPrivate: jobPrivatePda(job), jobEscrow: escrowPda(job) }).rpc(),
-    /NotTerminal|NotPaid/);
+    program.methods.closeJob().accounts({ requester: wallet.publicKey, job, jobPrivate: jp, jobEscrow: escrow }).rpc(),
+    /NotPaid/);
+
+  const before = await provider.connection.getBalance(wallet.publicKey);
+  await program.methods.settleDirect().accounts(settleAccounts).rpc();
+  const after = await provider.connection.getBalance(wallet.publicKey);
+  const e: any = await program.account.escrow.fetch(escrow);
+  assert.equal(e.paid, true);
+  assert.ok(after - before >= price - 20_000, `expected refund of ~${price}, got ${after - before}`);
+
+  // Escrow.paid is the idempotency key: a second settlement is refused.
+  await assert.rejects(program.methods.settleDirect().accounts(settleAccounts).rpc(), /AlreadySettled/);
+
+  await program.methods.closeJob().accounts({ requester: wallet.publicKey, job, jobPrivate: jp, jobEscrow: escrow }).rpc();
+  assert.equal(await provider.connection.getAccountInfo(job), null);
+  assert.equal(await provider.connection.getAccountInfo(jp), null);
+  assert.equal(await provider.connection.getAccountInfo(escrow), null);
 });

@@ -78,6 +78,10 @@ pub mod inference_market {
         instructions::settle::settle_direct(ctx)
     }
 
+    pub fn cancel_job_base(ctx: Context<CancelJobBase>) -> Result<()> {
+        instructions::cancel_base::handler(ctx)
+    }
+
     pub fn close_job(ctx: Context<CloseJob>) -> Result<()> {
         instructions::close_job::handler(ctx)
     }

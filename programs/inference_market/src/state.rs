@@ -11,6 +11,10 @@ pub const CHUNK_MAX: usize = 900;
 pub const MODEL_LABEL_LEN: usize = 32;
 pub const MAX_PERMISSION_MEMBERS: usize = 2;
 pub const MIN_DEADLINE_SECS: i64 = 60;
+/// Grace period after `deadline_unix` during which only the requester may
+/// approve a `Submitted` job. Once it elapses, approval becomes permissionless
+/// so an absent requester cannot lock the escrow forever.
+pub const AUTO_APPROVE_SECS: i64 = 3600;
 pub const ACTION_ESCROW_INDEX: u8 = 255;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug, InitSpace)]

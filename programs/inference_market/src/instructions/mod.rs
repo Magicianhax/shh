@@ -1,3 +1,4 @@
+pub mod cancel_base;
 pub mod claim;
 pub mod close_job;
 pub mod create_job;
@@ -9,6 +10,7 @@ pub mod prompt;
 pub mod register_provider;
 pub mod settle;
 
+pub use cancel_base::CancelJobBase;
 pub use claim::ClaimJob;
 pub use close_job::CloseJob;
 pub use create_job::{CreateJob, JobCreated};
@@ -25,6 +27,7 @@ pub use settle::{SettleAction, SettleDirect};
 // `instructions::*`. Re-export them explicitly (never a bare glob) so that
 // codegen keeps working without reintroducing the `handler` name collision
 // that a `pub use create_job::*; pub use register_provider::*;` glob causes.
+pub(crate) use cancel_base::__client_accounts_cancel_job_base;
 pub(crate) use claim::__client_accounts_claim_job;
 pub(crate) use close_job::__client_accounts_close_job;
 pub(crate) use create_job::__client_accounts_create_job;
