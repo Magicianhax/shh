@@ -151,6 +151,11 @@ pub struct Escrow {
 - `expire_job`: anyone; `job.status ∈ {Open, Claimed}`; `now >= deadline`.
 - `cancel_job`: `job.status ∈ {Created, Open}` only. Once claimed, the requester must wait for
   submission or expiry.
+- `cancel_job_base` (base layer): requester signer; `job.status == Created` and the job is still owned
+  by the program (never delegated). Sets `Cancelled` so `settle_direct` can refund.
+- Auto-approve: `approve_job` may be called by anyone once `job.status == Submitted` and
+  `now >= deadline_unix + AUTO_APPROVE_SECS` (3600). Prevents an absent requester from locking the
+  escrow forever. Before that moment, `approve_job` requires the requester.
 - Permission CPIs are only reachable through these instructions; never through a bare instruction.
 
 ## Transaction routing
@@ -329,3 +334,8 @@ tasks/todo.md                      implementation plan (next step)
   primary integration gate. mb-stack is optional; it cannot exercise the permission program.
 - TS auth flow verified in SDK 0.15.5: `getAuthToken(rpcUrl, pubkey, signMessage)` returns
   `{ token, expiresAt }`; the token is appended as `?token=` to the TEE HTTP and WS URLs.
+- Task 6 review (2026-09-04): added `cancel_job_base` (base-layer refund path for never-delegated
+  jobs) and auto-approve of Submitted jobs after `deadline + AUTO_APPROVE_SECS` (3600 s). Both close
+  fund-lock gaps in the transition table. `settle_action` requires the terminal signer to hold a funded
+  ephemeral balance PDA (index 255); third-party `expire_job` callers should pass
+  `schedule_action = false` and rely on `settle_direct`.
