@@ -1281,11 +1281,24 @@ textarea:focus {
 
 /* --- chat ---------------------------------------------------------------- */
 
+/*
+ * The app is a column: an optional notice row, then the route. The chat used to
+ * claim 100dvh outright, which overflowed the page by exactly the height of
+ * anything placed above it.
+ */
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
 .chat {
   display: grid;
   grid-template-columns: var(--rail) minmax(0, 1fr);
-  height: 100vh;
-  height: 100dvh;
+  /* Fills whatever the notice row leaves, rather than assuming the whole view. */
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -3493,5 +3506,71 @@ textarea:focus {
   }
   .trust-sec {
     padding-top: 72px;
+  }
+}
+
+/* --- tip bar -------------------------------------------------------------- */
+
+/*
+ * A single line above everything, on every route. It is advice about the user's
+ * wallet, so it belongs outside the app chrome rather than inside one page.
+ */
+.tipbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 7px 16px;
+  background: var(--s3);
+  border-bottom: 1px solid var(--hair-3);
+}
+
+.tipbar p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--muted);
+  text-align: center;
+}
+
+.tipbar a {
+  color: var(--acc);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.tipbar-close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--faint);
+  cursor: pointer;
+}
+
+.tipbar-close:hover {
+  color: var(--ink);
+}
+
+.tipbar-close:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: 1px;
+}
+
+@media (max-width: 640px) {
+  .tipbar {
+    padding: 7px 12px;
+    gap: 6px;
+  }
+
+  .tipbar p {
+    font-size: 12px;
+    text-align: left;
   }
 }
