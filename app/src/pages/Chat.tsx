@@ -15,6 +15,7 @@ import { DEFAULT_PRICE_LAMPORTS, DRAFT_MAX, buildPrompt, capBytes, groupByDay } 
 import { LAMPORTS, byteLen, shortKey, solText } from "../lib/format";
 import { Link } from "../router";
 import { useNotify } from "../notify";
+import { useWalletConnect } from "../wallet";
 
 const PRICE_LADDER = [0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05].map((v) =>
   Math.round(v * LAMPORTS),
@@ -50,6 +51,7 @@ const EXAMPLES = [
 export function Chat({ market }: { market: Market }) {
   const chat = useChat(market);
   const notify = useNotify();
+  const { open: openWallet } = useWalletConnect();
   const now = useNow();
   const tee = useTee();
   const owner = market.wallet.publicKey ?? null;
@@ -87,8 +89,8 @@ export function Chat({ market }: { market: Market }) {
 
   const connect = useCallback(() => {
     notify("err", "connect a wallet to send");
-    document.querySelector<HTMLButtonElement>(".wallet-adapter-button")?.click();
-  }, [notify]);
+    openWallet();
+  }, [notify, openWallet]);
 
   const submit = useCallback(() => {
     const text = draft.trim();
