@@ -11,6 +11,7 @@ import {
   prepareBaseTx,
   topUpActionEscrowIx,
 } from "@inference-market/client";
+import { withRpcPriority } from "../lib/rpc-priority";
 
 export const TOP_UP_LAMPORTS = ACTION_TOP_UP_LAMPORTS;
 
@@ -47,20 +48,23 @@ export function useActionEscrow(connection: Connection, wallet: WalletContextSta
     if (!owner) throw new Error("Connect a wallet first.");
     setBusy(true);
     try {
-      const tx = new Transaction().add(topUpActionEscrowIx(owner, TOP_UP_LAMPORTS));
-      // Left to itself the wallet adapter draws its own blockhash at the
-      // connection's commitment and preflights against it, which is the
-      // "Blockhash not found" this project draws the two separately to avoid.
-      // Stamping the transaction first is what takes that decision away from it.
-      const bh = await prepareBaseTx(connection, tx, owner);
-      const sig = await wallet.sendTransaction(tx, connection, {
-        preflightCommitment: BASE_PREFLIGHT_COMMITMENT,
+      // Background polling stands aside until this lands; those sweeps are what
+      // get a send served by a node that has not caught up.
+      return await withRpcPriority(async () => {
+        const tx = new Transaction().add(topUpActionEscrowIx(owner, TOP_UP_LAMPORTS));
+        // Left to itself the wallet adapter draws its own blockhash and
+        // preflights against it, which is the "Blockhash not found" that
+        // `prepareBaseTx` exists to take out of its hands.
+        const bh = await prepareBaseTx(connection, tx, owner);
+        const sig = await wallet.sendTransaction(tx, connection, {
+          preflightCommitment: BASE_PREFLIGHT_COMMITMENT,
+        });
+        // Against the hash the transaction was actually signed with. Fetching a
+        // fresh one here would wait on an expiry the transaction never had.
+        await confirmPreparedBaseTx(connection, sig, bh);
+        await refresh();
+        return sig;
       });
-      // Against the hash the transaction was actually signed with. Fetching a
-      // fresh one here would wait on an expiry the transaction never had.
-      await confirmPreparedBaseTx(connection, sig, bh);
-      await refresh();
-      return sig;
     } finally {
       setBusy(false);
     }

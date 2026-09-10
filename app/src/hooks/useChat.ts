@@ -27,6 +27,7 @@ import {
 } from "../lib/chat";
 import { errText, num, statusKey } from "../lib/format";
 import { recordStep } from "../lib/latency";
+import { withRpcPriority } from "../lib/rpc-priority";
 
 const POLL_MS = 2000;
 /** How long to wait for a scheduled settlement before settling by hand. */
@@ -233,16 +234,21 @@ export function useChat(market: Market) {
 
         // Step one, one signature: create the job, delegate both PDAs and, the
         // first time, fund the action escrow.
+        // The hold covers the wallet prompt too, not just the send. Phantom can
+        // take twenty seconds to open, and a polling sweep landing in that gap
+        // is enough to get the send served by a node that has not caught up.
         const t0 = performance.now();
-        const { job } = await openJob(
-          base,
-          owner,
-          nonce,
-          conv.priceLamports,
-          deadlineUnix,
-          conv.model,
-          validator,
-          topUp,
+        const { job } = await withRpcPriority(() =>
+          openJob(
+            base,
+            owner,
+            nonce,
+            conv.priceLamports,
+            deadlineUnix,
+            conv.model,
+            validator,
+            topUp,
+          ),
         );
         markStep(0, performance.now() - t0);
         stage = 1;

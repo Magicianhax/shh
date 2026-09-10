@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Connection, PublicKey } from "@solana/web3.js";
+import { shouldPoll } from "../lib/rpc-priority";
 
 const POLL_MS = 20_000;
 
@@ -39,7 +40,7 @@ export function useBalance(connection: Connection, owner: PublicKey | null): Bal
     }
     let stopped = false;
     const safeRead = () => {
-      if (!stopped) void read();
+      if (!stopped && shouldPoll()) void read();
     };
 
     safeRead();

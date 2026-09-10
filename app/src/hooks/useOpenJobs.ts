@@ -3,6 +3,7 @@ import { listOpenJobs } from "@inference-market/client";
 import type { AnyProgram } from "@inference-market/client";
 import { errText } from "../lib/format";
 import type { JobRow } from "./useJobs";
+import { shouldPoll } from "../lib/rpc-priority";
 
 const POLL_MS = 8000;
 
@@ -36,7 +37,9 @@ export function useOpenJobs(er: AnyProgram | null) {
   useEffect(() => {
     let stopped = false;
     const tick = () => {
-      if (!stopped) void load();
+      // Skipped while a transaction is in flight, or while the tab is hidden.
+      // See `shouldPoll`: these sweeps are what push a send onto a lagging node.
+      if (!stopped && shouldPoll()) void load();
     };
     tick();
     const id = window.setInterval(tick, POLL_MS);

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PublicKey } from "@solana/web3.js";
 import type { AnyProgram } from "@inference-market/client";
 import { errText } from "../lib/format";
+import { shouldPoll } from "../lib/rpc-priority";
 
 export type JobRow = {
   publicKey: PublicKey;
@@ -68,7 +69,9 @@ export function useJobs(
   useEffect(() => {
     let stopped = false;
     const tick = () => {
-      if (!stopped) void load();
+      // Skipped while a transaction is in flight, or while the tab is hidden.
+      // See `shouldPoll`: these sweeps are what push a send onto a lagging node.
+      if (!stopped && shouldPoll()) void load();
     };
     tick();
     const id = window.setInterval(tick, POLL_MS);

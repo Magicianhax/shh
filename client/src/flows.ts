@@ -123,21 +123,51 @@ async function classifySendFailure(
   throw e;
 }
 
-/** Send an already-signed base transaction and wait for it, or say why not. */
+/** Has this blockhash genuinely aged out, as opposed to merely not been found? */
+async function hashExpired(conn: Connection, bh: Blockhash): Promise<boolean> {
+  const height = await conn.getBlockHeight("confirmed").catch(() => 0);
+  return height > bh.lastValidBlockHeight;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Attempts at a send that preflight rejected with a hash it should have known. */
+const SEND_ATTEMPTS = 4;
+
+/**
+ * Send an already-signed base transaction and wait for it, or say why not.
+ *
+ * A rejected preflight is retried, because on devnet it is usually not a
+ * verdict on the transaction. Both endpoints measured reject a live blockhash
+ * around a fifth of the time while heavy reads are in flight — the request is
+ * evidently served by a node that has not caught up — and both are flawless on
+ * a quiet connection. A different node gets it right on the next attempt.
+ *
+ * Resending is safe in a way that rebuilding would not be: these are the same
+ * signed bytes, so the network sees one transaction with one signature however
+ * many times it arrives. Only a hash that has genuinely aged out is given up
+ * on, since no number of retries revives it.
+ */
 export async function sendPreparedBaseTx(
   conn: Connection,
   raw: Buffer | Uint8Array,
   bh: Blockhash,
 ): Promise<string> {
-  let sig: string;
-  try {
-    sig = await conn.sendRawTransaction(raw, {
-      preflightCommitment: BASE_PREFLIGHT_COMMITMENT,
-    });
-  } catch (e) {
-    return classifySendFailure(conn, bh, e);
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const sig = await conn.sendRawTransaction(raw, {
+        preflightCommitment: BASE_PREFLIGHT_COMMITMENT,
+      });
+      return await confirmPreparedBaseTx(conn, sig, bh);
+    } catch (e) {
+      const retryable =
+        attempt < SEND_ATTEMPTS &&
+        String((e as any)?.message ?? e).includes("Blockhash not found") &&
+        !(await hashExpired(conn, bh));
+      if (!retryable) return classifySendFailure(conn, bh, e);
+      await sleep(250 * attempt);
+    }
   }
-  return confirmPreparedBaseTx(conn, sig, bh);
 }
 
 /** Wait for a base signature against the blockhash it was actually signed with. */

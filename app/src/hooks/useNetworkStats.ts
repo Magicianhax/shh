@@ -4,6 +4,7 @@ import { PublicKey } from "@solana/web3.js";
 import { baseConnection, loadProgram } from "@inference-market/client";
 import type { AnyProgram } from "@inference-market/client";
 import { LAMPORTS, errText, num, statusKey } from "../lib/format";
+import { shouldPoll } from "../lib/rpc-priority";
 
 export type ProviderRow = {
   publicKey: PublicKey;
@@ -132,7 +133,11 @@ export function useNetworkStats(er: AnyProgram | null): NetworkStats {
   }, [er]);
 
   useEffect(() => {
-    const onFocus = () => refresh();
+    // A focus event can land in the middle of a send; three account sweeps are
+    // exactly what makes that send fail. It refreshes on the next focus instead.
+    const onFocus = () => {
+      if (shouldPoll()) refresh();
+    };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [refresh]);
