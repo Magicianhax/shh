@@ -303,6 +303,5 @@ npm run idl:sync
 
 ## Links
 
-- Design spec: `docs/superpowers/specs/2026-09-04-private-inference-network-design.md`
-- Implementation plan: `docs/superpowers/plans/2026-09-04-private-inference-network.md`
+- Design record and the dark palette, with measured contrast: `docs/design/dark-theme.md`
 - Visual design canvas ("Calm"): https://claude.ai/code/artifact/a48fd524-3dd6-4920-820c-e8b577dcbe7f
