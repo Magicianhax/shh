@@ -134,6 +134,19 @@ export function WalletModal({ open, onClose }: Props) {
           signed challenge.
         </p>
 
+        <details className="wallet-modal-disclosure">
+          <summary>Wallet not on devnet?</summary>
+          <dl>
+            <dt>Phantom</dt>
+            <dd>
+              Settings, then Developer Settings, enable Testnet Mode, choose Solana Devnet.
+            </dd>
+            <dt>Solflare</dt>
+            <dd>Settings, then Network, choose Devnet.</dd>
+          </dl>
+          <p>Shh only ever talks to devnet, so mainnet funds are never touched.</p>
+        </details>
+
         {wallets.length === 0 ? (
           <p className="empty" style={{ padding: "10px 0 2px" }}>
             no wallet detected · install{" "}

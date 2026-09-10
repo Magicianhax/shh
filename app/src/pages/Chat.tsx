@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_MODEL_ID, modelById, priceLamports } from "@inference-market/client";
+import { FaucetBanner } from "../components/FaucetBanner";
 import { Message } from "../components/Message";
 import { ModelPicker } from "../components/ModelPicker";
 import { PillMenu } from "../components/PillMenu";
@@ -55,7 +56,7 @@ export function Chat({ market }: { market: Market }) {
   const now = useNow();
   const tee = useTee();
   const owner = market.wallet.publicKey ?? null;
-  const lamports = useBalance(market.connection, owner);
+  const { lamports, refresh: refreshBalance } = useBalance(market.connection, owner);
   const actionEscrow = useActionEscrow(market.connection, market.wallet);
 
   const [draft, setDraft] = useState("");
@@ -284,6 +285,7 @@ export function Chat({ market }: { market: Market }) {
               />
               {tee.label}
             </span>
+            <span className="pill pill-static">Devnet</span>
           </div>
 
           <div className="thread-right">
@@ -313,9 +315,14 @@ export function Chat({ market }: { market: Market }) {
                   ))}
                 </div>
                 {!owner ? (
-                  <p className="empty" style={{ padding: 0 }}>
-                    connect a wallet to send your first message
-                  </p>
+                  <>
+                    <p className="empty" style={{ padding: 0 }}>
+                      connect a wallet to send your first message
+                    </p>
+                    <p className="empty" style={{ padding: 0 }}>
+                      Solana devnet · testing is free
+                    </p>
+                  </>
                 ) : null}
               </div>
             ) : (
@@ -333,6 +340,10 @@ export function Chat({ market }: { market: Market }) {
             )}
             <div ref={endRef} />
           </div>
+        </div>
+
+        <div className="faucet-wrap">
+          <FaucetBanner owner={owner} lamports={lamports} onFunded={refreshBalance} />
         </div>
 
         <div className="composer-wrap">

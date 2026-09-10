@@ -14,7 +14,7 @@ type Props = {
 /** The app bar from App.dc.html: brand, Requester/Provider toggle, TEE, wallet. */
 export function AppNav({ market, route }: Props) {
   const owner = market.wallet.publicKey ?? null;
-  const lamports = useBalance(market.connection, owner);
+  const { lamports } = useBalance(market.connection, owner);
   const tee = useTee();
 
   return (
@@ -39,6 +39,7 @@ export function AppNav({ market, route }: Props) {
           <i className={`dot ${tee.live ? "dot-live" : tee.live === false ? "dot-bad" : "dot-wait"}`} />
           <span>{tee.label}</span>
         </span>
+        <span className="pill pill-static">Devnet</span>
         <WalletChip owner={owner} lamports={lamports} />
       </div>
     </header>

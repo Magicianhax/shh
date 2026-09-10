@@ -9,9 +9,11 @@ import {
   settleDirect,
 } from "@inference-market/client";
 import type { FinishKind } from "@inference-market/client";
+import { FaucetBanner } from "../components/FaucetBanner";
 import { Pipeline, StateWord } from "../components/Pipeline";
 import { Sealed } from "../components/Sealed";
 import { useActionEscrow, TOP_UP_LAMPORTS } from "../hooks/useActionEscrow";
+import { useBalance } from "../hooks/useBalance";
 import { useJobs } from "../hooks/useJobs";
 import type { JobRow } from "../hooks/useJobs";
 import type { Market } from "../hooks/useMarket";
@@ -39,6 +41,7 @@ export function Jobs({ market }: { market: Market }) {
   const notify = useNotify();
   const owner = wallet.publicKey ?? null;
   const now = useNow();
+  const { lamports, refresh: refreshBalance } = useBalance(connection, owner);
 
   const mine = useCallback(
     (a: any) => Boolean(owner && a.requester.equals(owner)),
@@ -141,6 +144,8 @@ export function Jobs({ market }: { market: Market }) {
         <h2>Your jobs</h2>
         <span style={{ fontSize: 14, color: "var(--muted)" }}>{counts}</span>
       </div>
+
+      <FaucetBanner owner={owner} lamports={lamports} onFunded={refreshBalance} />
 
       {!owner ? (
         <p className="empty">connect a wallet to see the jobs you posted</p>
