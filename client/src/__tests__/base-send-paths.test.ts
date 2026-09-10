@@ -78,6 +78,29 @@ test("no base-layer send bypasses the finalized-blockhash helpers", () => {
   );
 });
 
+/**
+ * A finalized blockhash was tried and reverted. It is rejected at the same rate
+ * as a confirmed one, and it arrives about thirty slots old, leaving 48 seconds
+ * of the 60 a hash lives — which a Phantom prompt that takes twenty to thirty
+ * seconds to open can outlast. The reasoning lives in a commit message and a
+ * comment, neither of which stops someone reintroducing it, so it is pinned
+ * here. The rollup paths are exempt: that is a single node, not a pool.
+ */
+test("base blockhashes are drawn at confirmed, never finalized", () => {
+  const flows = fs.readFileSync(path.join(repo, "client", "src", "flows.ts"), "utf8");
+  const offences = flows
+    .split(/\r?\n/)
+    .map((line, i) => ({ line: line.trim(), n: i + 1 }))
+    .filter(({ line }) => /getLatestBlockhash\(\s*["']finalized["']\s*\)/.test(line));
+  assert.deepEqual(
+    offences,
+    [],
+    `use BASE_BLOCKHASH_COMMITMENT; a finalized hash throws away 12 of its 60 seconds:\n${offences
+      .map((o) => `  flows.ts:${o.n}  ${o.line}`)
+      .join("\n")}`,
+  );
+});
+
 test("the rollup sends are still exempt, and still present", () => {
   const flows = fs.readFileSync(path.join(repo, "client", "src", "flows.ts"), "utf8");
   // If these are ever renamed the exemption above goes stale and starts

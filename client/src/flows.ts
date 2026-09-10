@@ -78,13 +78,30 @@ export const label32 = (s: string): number[] => {
  */
 export const BASE_PREFLIGHT_COMMITMENT = "confirmed" as const;
 
+/**
+ * The commitment every base-layer blockhash is drawn at.
+ *
+ * `finalized` was tried here and was a mistake. Measured on this endpoint, the
+ * two commitments are rejected at an identical rate, so finalized bought no
+ * reliability at all — and a finalized hash is already about thirty slots old,
+ * which leaves 48 seconds of the 60 a hash lives instead of the full 60.
+ * Phantom takes twenty to thirty seconds just to open its prompt on devnet, so
+ * those twelve seconds are the difference between a prompt the user can answer
+ * in time and one that expires while they read it.
+ *
+ * Pool inconsistency is real, but it is a function of load rather than
+ * commitment, and `sendPreparedBaseTx` answers it by retrying. See
+ * `shouldPoll` in the app for the other half.
+ */
+export const BASE_BLOCKHASH_COMMITMENT = "confirmed" as const;
+
 /** Stamp fee payer and a finalized blockhash, and report the expiry height. */
 export async function prepareBaseTx(
   conn: Connection,
   tx: Transaction,
   feePayer: PublicKey,
 ): Promise<Blockhash> {
-  const bh = await conn.getLatestBlockhash("finalized");
+  const bh = await conn.getLatestBlockhash(BASE_BLOCKHASH_COMMITMENT);
   tx.feePayer = feePayer;
   tx.recentBlockhash = bh.blockhash;
   return bh;
@@ -427,13 +444,10 @@ export async function buildOpenJobTxs(
   if (topUpLamports > 0) ixs.push(topUpActionEscrowIx(requester, topUpLamports));
 
   const conn = base.provider.connection;
-  // Finalized, not confirmed. The devnet endpoint is a pool, and a hash one
-  // node has only just confirmed can be unknown to the node that runs
-  // preflight, which surfaces as "Blockhash not found" on a perfectly valid
-  // transaction. Every node knows a finalized hash. It costs roughly thirteen
-  // seconds of the sixty a hash stays valid, which still leaves ample room for
-  // a human to read a wallet prompt.
-  const blockhash = await conn.getLatestBlockhash("finalized");
+  // Drawn last, after the instructions are built, so the clock starts as late
+  // as possible: everything after this races a slow Phantom prompt. See
+  // `BASE_BLOCKHASH_COMMITMENT` for why this is not `finalized`.
+  const blockhash = await conn.getLatestBlockhash(BASE_BLOCKHASH_COMMITMENT);
   const txs = packInstructions(ixs, requester, blockhash.blockhash);
   for (const tx of txs) tx.feePayer = requester;
   return { job: jobPda(requester, nonce), txs, sizes: txs.map(packedSize), blockhash };
