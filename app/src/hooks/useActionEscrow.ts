@@ -6,6 +6,9 @@ import { escrowPdaFromEscrowAuthority } from "@magicblock-labs/ephemeral-rollups
 import {
   ACTION_ESCROW_INDEX,
   ACTION_TOP_UP_LAMPORTS,
+  BASE_PREFLIGHT_COMMITMENT,
+  confirmPreparedBaseTx,
+  prepareBaseTx,
   topUpActionEscrowIx,
 } from "@inference-market/client";
 
@@ -45,9 +48,17 @@ export function useActionEscrow(connection: Connection, wallet: WalletContextSta
     setBusy(true);
     try {
       const tx = new Transaction().add(topUpActionEscrowIx(owner, TOP_UP_LAMPORTS));
-      const sig = await wallet.sendTransaction(tx, connection);
-      const bh = await connection.getLatestBlockhash("confirmed");
-      await connection.confirmTransaction({ signature: sig, ...bh }, "confirmed");
+      // Left to itself the wallet adapter draws its own blockhash at the
+      // connection's commitment and preflights against it, which is the
+      // "Blockhash not found" this project draws the two separately to avoid.
+      // Stamping the transaction first is what takes that decision away from it.
+      const bh = await prepareBaseTx(connection, tx, owner);
+      const sig = await wallet.sendTransaction(tx, connection, {
+        preflightCommitment: BASE_PREFLIGHT_COMMITMENT,
+      });
+      // Against the hash the transaction was actually signed with. Fetching a
+      // fresh one here would wait on an expiry the transaction never had.
+      await confirmPreparedBaseTx(connection, sig, bh);
       await refresh();
       return sig;
     } finally {

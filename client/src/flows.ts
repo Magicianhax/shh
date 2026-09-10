@@ -56,37 +56,116 @@ export const label32 = (s: string): number[] => {
 // ---------------------------------------------------------------------------
 
 /**
- * Send one base-layer instruction, drawing the blockhash and the simulation
- * from different commitments on purpose.
+ * The commitment every base-layer preflight simulates at.
  *
- * Anchor exposes a single `preflightCommitment` for both, and neither value
- * works for both jobs on devnet:
+ * Anchor exposes a single `preflightCommitment` for both the blockhash and the
+ * simulation, and neither value works for both jobs on devnet:
  *
  *   - The blockhash must be **finalized**. The public devnet endpoint is a
  *     pool, and a hash one node has only just confirmed can be unknown to
  *     whichever node runs preflight, which surfaces as "Blockhash not found"
  *     on a perfectly valid transaction.
  *   - The simulation must be **confirmed**. Finalized state lags by around
- *     thirteen seconds, so a transaction that touches an account changed a
+ *     twelve seconds, so a transaction that touches an account changed a
  *     moment ago — closing a job the rollup has just undelegated, say — is
  *     simulated against the account's previous owner and rejected.
  *
  * So the two are drawn separately rather than sharing Anchor's one knob.
+ * Every base-layer send in this project goes through `prepareBaseTx` and
+ * `sendPreparedBaseTx`; nothing may call `.rpc()`, `sendAndConfirm`, or an
+ * unprepared `wallet.sendTransaction`, all of which quietly draw a confirmed
+ * blockhash and reintroduce the bug.
  */
+export const BASE_PREFLIGHT_COMMITMENT = "confirmed" as const;
+
+/** Stamp fee payer and a finalized blockhash, and report the expiry height. */
+export async function prepareBaseTx(
+  conn: Connection,
+  tx: Transaction,
+  feePayer: PublicKey,
+): Promise<Blockhash> {
+  const bh = await conn.getLatestBlockhash("finalized");
+  tx.feePayer = feePayer;
+  tx.recentBlockhash = bh.blockhash;
+  return bh;
+}
+
+/**
+ * Thrown when the blockhash died before the transaction reached the chain,
+ * which on this endpoint is usually a slow wallet prompt rather than a fault.
+ *
+ * It is worth separating from a pool split, because the two look identical from
+ * the outside — both say "Blockhash not found" — and they want opposite fixes.
+ * A retry helps here and nowhere else.
+ */
+export class BlockhashExpiredError extends Error {
+  constructor() {
+    super("The transaction expired before it reached the network. Please try again.");
+    this.name = "BlockhashExpiredError";
+  }
+}
+
+/**
+ * Distinguish the two causes after a send has already failed. A hash drawn at
+ * finalized is roughly a dozen seconds old before the wallet is even opened, so
+ * a human who takes their time can outlast it.
+ */
+async function classifySendFailure(
+  conn: Connection,
+  bh: Blockhash,
+  e: unknown,
+): Promise<never> {
+  const msg = String((e as any)?.message ?? e);
+  if (msg.includes("Blockhash not found") || msg.includes("block height exceeded")) {
+    const height = await conn.getBlockHeight("confirmed").catch(() => 0);
+    if (height > bh.lastValidBlockHeight) throw new BlockhashExpiredError();
+  }
+  throw e;
+}
+
+/** Send an already-signed base transaction and wait for it, or say why not. */
+export async function sendPreparedBaseTx(
+  conn: Connection,
+  raw: Buffer | Uint8Array,
+  bh: Blockhash,
+): Promise<string> {
+  let sig: string;
+  try {
+    sig = await conn.sendRawTransaction(raw, {
+      preflightCommitment: BASE_PREFLIGHT_COMMITMENT,
+    });
+  } catch (e) {
+    return classifySendFailure(conn, bh, e);
+  }
+  return confirmPreparedBaseTx(conn, sig, bh);
+}
+
+/** Wait for a base signature against the blockhash it was actually signed with. */
+export async function confirmPreparedBaseTx(
+  conn: Connection,
+  sig: string,
+  bh: Blockhash,
+): Promise<string> {
+  let res;
+  try {
+    res = await conn.confirmTransaction({ signature: sig, ...bh }, "confirmed");
+  } catch (e) {
+    return classifySendFailure(conn, bh, e);
+  }
+  if (res.value.err) {
+    throw new Error(`base transaction ${sig} failed: ${JSON.stringify(res.value.err)}`);
+  }
+  return sig;
+}
+
+/** Send one base-layer instruction built by Anchor. */
 async function baseRpc(base: AnyProgram, builder: any): Promise<string> {
   const provider = base.provider as anchor.AnchorProvider;
   const conn = provider.connection;
   const tx: Transaction = await builder.transaction();
-  tx.feePayer = provider.wallet.publicKey;
-  const bh = await conn.getLatestBlockhash("finalized");
-  tx.recentBlockhash = bh.blockhash;
+  const bh = await prepareBaseTx(conn, tx, provider.wallet.publicKey);
   const signed = await provider.wallet.signTransaction(tx);
-  const sig = await conn.sendRawTransaction(signed.serialize(), {
-    preflightCommitment: "confirmed",
-  });
-  const res = await conn.confirmTransaction({ signature: sig, ...bh }, "confirmed");
-  if (res.value.err) throw new Error(`base transaction ${sig} failed: ${JSON.stringify(res.value.err)}`);
-  return sig;
+  return sendPreparedBaseTx(conn, signed.serialize(), bh);
 }
 
 export async function registerProvider(
@@ -256,11 +335,12 @@ export async function createJob(
   deadlineUnix: number,
   model: string,
 ): Promise<{ job: PublicKey; sig: string }> {
-  const sig = await (base.provider as anchor.AnchorProvider).sendAndConfirm(
-    new Transaction().add(
-      await createJobIx(base, requester, nonce, priceLamports, deadlineUnix, model),
-    ),
-  );
+  const sig = await baseRpc(base, {
+    transaction: async () =>
+      new Transaction().add(
+        await createJobIx(base, requester, nonce, priceLamports, deadlineUnix, model),
+      ),
+  });
   return { job: jobPda(requester, nonce), sig };
 }
 
@@ -271,9 +351,13 @@ export async function delegateJob(
   nonce: bigint,
   validator: PublicKey,
 ): Promise<string> {
-  const tx = new Transaction();
-  for (const ix of await delegateJobIxs(base, requester, nonce, validator)) tx.add(ix);
-  return (base.provider as anchor.AnchorProvider).sendAndConfirm(tx);
+  return baseRpc(base, {
+    transaction: async () => {
+      const tx = new Transaction();
+      for (const ix of await delegateJobIxs(base, requester, nonce, validator)) tx.add(ix);
+      return tx;
+    },
+  });
 }
 
 export type OpenJobPlan = {
@@ -321,6 +405,7 @@ export async function buildOpenJobTxs(
   // a human to read a wallet prompt.
   const blockhash = await conn.getLatestBlockhash("finalized");
   const txs = packInstructions(ixs, requester, blockhash.blockhash);
+  for (const tx of txs) tx.feePayer = requester;
   return { job: jobPda(requester, nonce), txs, sizes: txs.map(packedSize), blockhash };
 }
 
@@ -365,23 +450,11 @@ export async function openJob(
       ? await wallet.signAllTransactions(plan.txs)
       : await Promise.all(plan.txs.map((tx) => wallet.signTransaction(tx)));
 
+  // Sent one at a time and each confirmed before the next: `create_job` has to
+  // land before the delegations that follow it.
   const sigs: string[] = [];
   for (const tx of signed) {
-    // Preflight stays on, and simulates against confirmed state while the
-    // blockhash above came from finalized. See `baseRpc` for why the two are
-    // drawn from different commitments.
-    const sig = await conn.sendRawTransaction(tx.serialize(), {
-      preflightCommitment: "confirmed",
-    });
-    await conn.confirmTransaction(
-      {
-        signature: sig,
-        blockhash: plan.blockhash.blockhash,
-        lastValidBlockHeight: plan.blockhash.lastValidBlockHeight,
-      },
-      "confirmed",
-    );
-    sigs.push(sig);
+    sigs.push(await sendPreparedBaseTx(conn, tx.serialize(), plan.blockhash));
   }
   return { job: plan.job, sigs, sizes: plan.sizes };
 }
