@@ -5,6 +5,7 @@ import { WalletReadyState } from "@solana/wallet-adapter-base";
 import type { WalletName } from "@solana/wallet-adapter-base";
 import { CloseIcon } from "./icons";
 import { errText } from "../lib/format";
+import { knownUnableToSign } from "../lib/wallet-caps";
 
 type Props = {
   open: boolean;
@@ -59,6 +60,17 @@ export function WalletModal({ open, onClose }: Props) {
       try {
         await connect();
         if (cancelled) return;
+        // Only now are the adapter's real capabilities knowable: it attaches
+        // `signMessage` when the connected account reports the feature. The
+        // adapter mutates in place, so this reads the post-connect truth.
+        if (!("signMessage" in wallet.adapter)) {
+          setPending(null);
+          setError(
+            `${wallet.adapter.name} connected but will not sign messages, so the chat cannot ` +
+              `open a private rollup session. Try another wallet.`,
+          );
+          return;
+        }
         setError(null);
         setPending(null);
         onClose();
@@ -90,7 +102,11 @@ export function WalletModal({ open, onClose }: Props) {
   );
 
   const row = (w: Wallet) => {
-    const canSign = "signMessage" in w.adapter;
+    // Only asked of the wallet that is actually connected; see `wallet-caps`.
+    const canSign = !knownUnableToSign(w.adapter, {
+      connected,
+      connectedName: wallet?.adapter.name ?? null,
+    });
     const busy = pending === w.adapter.name;
     return (
       <button
