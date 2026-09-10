@@ -278,6 +278,7 @@ button {
   .pulse,
   .dots i,
   .spin,
+  .net-refresh.spin svg,
   .toast,
   .wallet-popover,
   .wallet-modal-backdrop,
@@ -1991,6 +1992,181 @@ textarea:focus {
   min-width: 220px;
 }
 
+/* --- network --------------------------------------------------------------- */
+
+.net-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.net-head h3 {
+  font-size: 20px;
+}
+
+.net-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.net-refresh {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--hair-3);
+  border-radius: 999px;
+  background: var(--s1);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background-color 120ms var(--ease);
+}
+
+.net-refresh:hover:not(:disabled) {
+  background: var(--s2);
+}
+
+.net-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.net-refresh.spin svg {
+  animation: spin 700ms linear;
+}
+
+.net-caveat {
+  max-width: 62ch;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: var(--s1);
+  border: 1px solid var(--hair);
+}
+
+.stat b {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.ptable {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ptable-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 90px 90px 90px;
+  gap: 16px;
+  padding: 0 22px;
+}
+
+.ptable-head span {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.ptable-head span:nth-child(n + 3) {
+  text-align: right;
+}
+
+.prow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 90px 90px 90px;
+  gap: 16px;
+  align-items: center;
+  padding: 16px 22px;
+  border-radius: 18px;
+  border: 1px solid var(--hair);
+}
+
+.prow-cell {
+  min-width: 0;
+}
+
+.prow-num {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  text-align: right;
+}
+
+.prow-addr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.prow-addr button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: -12px 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.prow-addr button:hover {
+  color: var(--acc-link);
+}
+
+.prow-you {
+  flex: none;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--acc-soft);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--acc-deep);
+}
+
+.prow-label {
+  font-size: 13px;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prow-label-mobile {
+  display: none;
+}
+
 /* --- toasts -------------------------------------------------------------- */
 
 .toasts {
@@ -2085,6 +2261,20 @@ textarea:focus {
   .page {
     padding-left: 24px;
     padding-right: 24px;
+  }
+
+  .stat-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ptable-head,
+  .prow {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr) 80px 80px 80px;
+    gap: 12px;
+  }
+
+  .prow {
+    padding: 14px 16px;
   }
 
   .row {
@@ -2381,6 +2571,45 @@ textarea:focus {
 
   .tile b {
     font-size: 24px;
+  }
+
+  .net-head {
+    align-items: center;
+  }
+
+  .stat-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Provider rows stack into cards, same treatment as the jobs list. */
+  .ptable-head {
+    display: none;
+  }
+
+  .prow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding: 16px;
+  }
+
+  .prow-cell {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .prow-num {
+    text-align: left;
+  }
+
+  .prow-label-mobile {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--faint);
   }
 
   .toasts {

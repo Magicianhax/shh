@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { MODEL_LABEL_LEN, providerPda, registerProvider } from "@inference-market/client";
+import { NetworkPanel } from "../components/NetworkPanel";
 import { Pipeline, StateWord } from "../components/Pipeline";
 import { useJobs } from "../hooks/useJobs";
 import type { Market } from "../hooks/useMarket";
+import { useNetworkStats } from "../hooks/useNetworkStats";
 import { useNow } from "../hooks/useNow";
 import { useOpenJobs } from "../hooks/useOpenJobs";
 import { useNotify } from "../notify";
@@ -32,6 +34,7 @@ export function Provider({ market }: { market: Market }) {
   );
   const { jobs } = useJobs(base, er, mine);
   const open = useOpenJobs(er);
+  const network = useNetworkStats(er);
 
   const [account, setAccount] = useState<ProviderAccount>(null);
   const [loaded, setLoaded] = useState(false);
@@ -80,6 +83,7 @@ export function Provider({ market }: { market: Market }) {
       const sig = await registerProvider(base, owner, model.trim());
       notify("ok", `registered · ${shortKey(sig, 4)}`);
       await loadAccount();
+      network.refresh();
     } catch (err) {
       setError(errText(err));
       notify("err", "registration failed");
@@ -115,6 +119,9 @@ export function Provider({ market }: { market: Market }) {
             get paid on approval.
           </h2>
         </div>
+
+        <NetworkPanel stats={network} rollupReady={Boolean(er)} owner={owner} />
+
         <p className="empty">connect the wallet your worker signs with</p>
       </div>
     );
@@ -129,6 +136,8 @@ export function Provider({ market }: { market: Market }) {
           get paid on approval.
         </h2>
       </div>
+
+      <NetworkPanel stats={network} rollupReady={Boolean(er)} owner={owner} />
 
       <div className="tiles" style={{ marginBottom: 28 }}>
         <div className="tile">

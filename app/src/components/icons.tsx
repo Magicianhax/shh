@@ -92,3 +92,10 @@ export const CopyIcon = ({ size = 14 }: P) => (
     <path d="M15 5.5A1.9 1.9 0 0 0 13.2 4H6a2 2 0 0 0-2 2v7.2A1.9 1.9 0 0 0 5.5 15" />
   </svg>
 );
+
+export const RefreshIcon = ({ size = 16 }: P) => (
+  <svg {...s(size, 1.8)}>
+    <path d="M4 12a8 8 0 0 1 14-5.2M20 12a8 8 0 0 1-14 5.2" />
+    <path d="M18 3v4h-4M6 21v-4h4" />
+  </svg>
+);
