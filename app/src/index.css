@@ -2250,13 +2250,44 @@ textarea:focus {
     padding: 48px 0 32px;
   }
 
+  /* Phone: the bar becomes two rows. Row one carries the mark, the rollup dot,
+     the Devnet label and the wallet; row two gives the Requester/Provider
+     toggle the full width. One row cannot hold the toggle and the wallet pill
+     at 375px, and flexing them into each other overlapped the tabs. */
   .appnav {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "brand right"
+      "toggle toggle";
+    align-items: center;
+    row-gap: 10px;
     padding: 12px 16px;
     gap: 12px;
   }
 
   .appnav-left {
-    gap: 12px;
+    display: contents;
+  }
+
+  .brand {
+    grid-area: brand;
+  }
+
+  .toggle {
+    grid-area: toggle;
+    width: 100%;
+  }
+
+  .toggle a {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .appnav-right {
+    grid-area: right;
+    justify-self: end;
+    gap: 10px;
   }
 
   .brand span {
@@ -2264,12 +2295,6 @@ textarea:focus {
   }
 
   .tee span {
-    display: none;
-  }
-
-  /* The Requester/Provider toggle and the wallet chip already fill this width
-     at phone size; the static Devnet label is the one thing safe to drop. */
-  .appnav-right .pill-static {
     display: none;
   }
 
