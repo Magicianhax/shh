@@ -69,6 +69,11 @@ export function useMarket(): Market {
         ? loadProgram(
             new anchor.AnchorProvider(connection, walletRef.current as unknown as anchor.Wallet, {
               commitment: "confirmed",
+              // Left at Anchor's default on purpose. The base flows that need a
+              // finalized blockhash draw one themselves (see `baseRpc` in the
+              // client), because raising this knob would also simulate against
+              // finalized state and reject anything touching an account the
+              // rollup changed a moment ago.
             }),
           )
         : null,

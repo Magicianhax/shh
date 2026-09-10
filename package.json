@@ -11,7 +11,8 @@
     "test:local": "anchor test",
     "test:devnet": "node node_modules/tsx/dist/cli.mjs tests/devnet/e2e.ts",
     "idl:sync": "cp target/idl/inference_market.json client/src/idl/inference_market.json",
-    "test:live": "node node_modules/tsx/dist/cli.mjs tests/devnet/live-worker.ts"
+    "test:live": "node node_modules/tsx/dist/cli.mjs tests/devnet/live-worker.ts",
+    "test:live-chat": "node node_modules/tsx/dist/cli.mjs tests/devnet/live-chat.ts"
   },
   "devDependencies": {
     "@coral-xyz/anchor": "0.32.1",

@@ -55,19 +55,53 @@ export const label32 = (s: string): number[] => {
 // Base layer
 // ---------------------------------------------------------------------------
 
+/**
+ * Send one base-layer instruction, drawing the blockhash and the simulation
+ * from different commitments on purpose.
+ *
+ * Anchor exposes a single `preflightCommitment` for both, and neither value
+ * works for both jobs on devnet:
+ *
+ *   - The blockhash must be **finalized**. The public devnet endpoint is a
+ *     pool, and a hash one node has only just confirmed can be unknown to
+ *     whichever node runs preflight, which surfaces as "Blockhash not found"
+ *     on a perfectly valid transaction.
+ *   - The simulation must be **confirmed**. Finalized state lags by around
+ *     thirteen seconds, so a transaction that touches an account changed a
+ *     moment ago — closing a job the rollup has just undelegated, say — is
+ *     simulated against the account's previous owner and rejected.
+ *
+ * So the two are drawn separately rather than sharing Anchor's one knob.
+ */
+async function baseRpc(base: AnyProgram, builder: any): Promise<string> {
+  const provider = base.provider as anchor.AnchorProvider;
+  const conn = provider.connection;
+  const tx: Transaction = await builder.transaction();
+  tx.feePayer = provider.wallet.publicKey;
+  const bh = await conn.getLatestBlockhash("finalized");
+  tx.recentBlockhash = bh.blockhash;
+  const signed = await provider.wallet.signTransaction(tx);
+  const sig = await conn.sendRawTransaction(signed.serialize(), {
+    preflightCommitment: "confirmed",
+  });
+  const res = await conn.confirmTransaction({ signature: sig, ...bh }, "confirmed");
+  if (res.value.err) throw new Error(`base transaction ${sig} failed: ${JSON.stringify(res.value.err)}`);
+  return sig;
+}
+
 export async function registerProvider(
   base: AnyProgram,
   authority: PublicKey,
   model: string,
 ): Promise<string> {
-  return base.methods
-    .registerProvider(label32(model))
-    .accounts({
+  return baseRpc(
+    base,
+    base.methods.registerProvider(label32(model)).accounts({
       authority,
       providerAccount: providerPda(authority),
       systemProgram: SystemProgram.programId,
-    })
-    .rpc();
+    }),
+  );
 }
 
 /** Default ephemeral-balance top-up for scheduled Magic Actions, in lamports. */
@@ -247,6 +281,8 @@ export type OpenJobPlan = {
   txs: Transaction[];
   /** Packed byte size of each transaction, in order. */
   sizes: number[];
+  /** The blockhash the plan is stamped with, and the height it expires at. */
+  blockhash: Blockhash;
 };
 
 /**
@@ -277,18 +313,24 @@ export async function buildOpenJobTxs(
   if (topUpLamports > 0) ixs.push(topUpActionEscrowIx(requester, topUpLamports));
 
   const conn = base.provider.connection;
-  const { blockhash } = await conn.getLatestBlockhash("confirmed");
-  const txs = packInstructions(ixs, requester, blockhash);
-  return { job: jobPda(requester, nonce), txs, sizes: txs.map(packedSize) };
+  // Finalized, not confirmed. The devnet endpoint is a pool, and a hash one
+  // node has only just confirmed can be unknown to the node that runs
+  // preflight, which surfaces as "Blockhash not found" on a perfectly valid
+  // transaction. Every node knows a finalized hash. It costs roughly thirteen
+  // seconds of the sixty a hash stays valid, which still leaves ample room for
+  // a human to read a wallet prompt.
+  const blockhash = await conn.getLatestBlockhash("finalized");
+  const txs = packInstructions(ixs, requester, blockhash.blockhash);
+  return { job: jobPda(requester, nonce), txs, sizes: txs.map(packedSize), blockhash };
 }
 
 /**
  * Build and send the base-layer half of a message.
  *
- * `AnchorProvider.sendAll` signs the whole plan with a single
- * `signAllTransactions` call and then sends and confirms each transaction in
- * turn, so a one-transaction plan is one wallet prompt and a split plan is still
- * one wallet prompt.
+ * The whole plan is signed with a single `signAllTransactions` call and then
+ * sent and confirmed one transaction at a time, so a one-transaction plan is
+ * one wallet prompt and a split plan is still one wallet prompt. A wallet
+ * without `signAllTransactions` falls back to one prompt per transaction.
  */
 export async function openJob(
   base: AnyProgram,
@@ -310,9 +352,37 @@ export async function openJob(
     validator,
     topUpLamports,
   );
-  const sigs = await (base.provider as anchor.AnchorProvider).sendAll(
-    plan.txs.map((tx) => ({ tx })),
-  );
+  // Deliberately not `AnchorProvider.sendAll`: it fetches a second blockhash of
+  // its own and overwrites the one this plan carries, which both wastes a round
+  // trip in front of the wallet prompt and reinstates the confirmed-commitment
+  // hash that this path exists to avoid.
+  const provider = base.provider as anchor.AnchorProvider;
+  const conn = provider.connection;
+  const wallet = provider.wallet;
+
+  const signed =
+    typeof wallet.signAllTransactions === "function"
+      ? await wallet.signAllTransactions(plan.txs)
+      : await Promise.all(plan.txs.map((tx) => wallet.signTransaction(tx)));
+
+  const sigs: string[] = [];
+  for (const tx of signed) {
+    // Preflight stays on, and simulates against confirmed state while the
+    // blockhash above came from finalized. See `baseRpc` for why the two are
+    // drawn from different commitments.
+    const sig = await conn.sendRawTransaction(tx.serialize(), {
+      preflightCommitment: "confirmed",
+    });
+    await conn.confirmTransaction(
+      {
+        signature: sig,
+        blockhash: plan.blockhash.blockhash,
+        lastValidBlockHeight: plan.blockhash.lastValidBlockHeight,
+      },
+      "confirmed",
+    );
+    sigs.push(sig);
+  }
   return { job: plan.job, sigs, sizes: plan.sizes };
 }
 
@@ -633,17 +703,17 @@ export async function settleDirect(
 ): Promise<string> {
   const j: any = await base.account.job.fetch(job);
   const claimed = !j.provider.equals(PublicKey.default);
-  return base.methods
-    .settleDirect()
-    .accounts({
+  return baseRpc(
+    base,
+    base.methods.settleDirect().accounts({
       payer,
       jobEscrow: escrowPda(job),
       job,
       providerAccount: claimed ? providerPda(j.provider) : j.requester,
       requesterWallet: j.requester,
       providerWallet: claimed ? j.provider : j.requester,
-    })
-    .rpc();
+    }),
+  );
 }
 
 /** Cancel a job that is still on the base layer, before it was ever delegated. */
@@ -652,7 +722,7 @@ export async function cancelJobBase(
   requester: PublicKey,
   job: PublicKey,
 ): Promise<string> {
-  return base.methods.cancelJobBase().accounts({ requester, job }).rpc();
+  return baseRpc(base, base.methods.cancelJobBase().accounts({ requester, job }));
 }
 
 /** Reclaim rent from a settled job by closing `Job`, `JobPrivate` and the escrow. */
@@ -661,15 +731,15 @@ export async function closeJob(
   requester: PublicKey,
   job: PublicKey,
 ): Promise<string> {
-  return base.methods
-    .closeJob()
-    .accounts({
+  return baseRpc(
+    base,
+    base.methods.closeJob().accounts({
       requester,
       job,
       jobPrivate: jobPrivatePda(job),
       jobEscrow: escrowPda(job),
-    })
-    .rpc();
+    }),
+  );
 }
 
 /**

@@ -1,0 +1,33 @@
+# The provider worker: a poller, not a server.
+#
+# It holds no port and serves no traffic, so there is no [http_service] and no
+# health check to expose. One machine, always on: two would race each other for
+# the same jobs and lose the claim, and a machine that stops cannot notice a new
+# job at all.
+
+app = "shh-provider"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  INFERENCE_PROVIDER = "anthropic"
+  MAX_OUTPUT_TOKENS = "1024"
+  POLL_MS = "5000"
+  RECONCILE_MS = "30000"
+  MIN_TIME_LEFT_S = "30"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+
+# Never scale this to zero and never run a second copy.
+[deploy]
+  strategy = "immediate"
+
+# A crash is almost always a transient RPC or backend failure, so come back.
+# Fly still gives up after a tight enough crash loop, which is the behaviour
+# wanted for a genuine misconfiguration.
+[[restart]]
+  policy = "always"

@@ -150,11 +150,40 @@ function registerLabelFor(served: Map<string, ServedModel>): string {
   return first!.spec.id;
 }
 
+/**
+ * The provider's signing key.
+ *
+ * `PROVIDER_SECRET_KEY` holds the 64-byte secret as a JSON array and is the
+ * form a hosted deployment wants, because a platform secret is a string and
+ * baking a key file into an image is not an option. `KEYPAIR_PATH` points at
+ * the same bytes on disk and stays the local default, so `solana-keygen`
+ * output can be used directly. Exactly one is needed; the inline secret wins
+ * when both are set.
+ */
+function readKeypair(): Keypair {
+  const inline = process.env.PROVIDER_SECRET_KEY;
+  const source = inline && inline.trim() ? inline : fs.readFileSync(req("KEYPAIR_PATH"), "utf8");
+  let bytes: unknown;
+  try {
+    bytes = JSON.parse(source);
+  } catch {
+    throw new Error(
+      inline
+        ? "PROVIDER_SECRET_KEY must be a JSON array of 64 bytes"
+        : "the file at KEYPAIR_PATH must be a JSON array of 64 bytes",
+    );
+  }
+  if (!Array.isArray(bytes) || bytes.length !== 64) {
+    throw new Error("the provider secret key must be a JSON array of exactly 64 bytes");
+  }
+  return Keypair.fromSecretKey(new Uint8Array(bytes as number[]));
+}
+
 const provider = readProvider();
 const served = readServed(provider);
 
 export const cfg = {
-  keypair: Keypair.fromSecretKey(new Uint8Array(JSON.parse(fs.readFileSync(req("KEYPAIR_PATH"), "utf8")))),
+  keypair: readKeypair(),
   provider,
   served,
   registerLabel: registerLabelFor(served),

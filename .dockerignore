@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+target
+.anchor
+.git
+.env
+**/.env
+app/dist
+docs
+design
+tasks
+tests
+*.md
+*.txt

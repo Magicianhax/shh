@@ -6,7 +6,8 @@
  *      catalog price (so the worker's floor accepts it)
  *   2. wait for the worker to claim and answer it on the TEE rollup
  *   3. read the answer as the requester (length, hash, short excerpt)
- *   4. approve without a Magic Action, settle directly, close
+ *   4. approve without a Magic Action, settle (directly, or accept that the
+ *      running worker's reconciler already did), close
  *
  * Never prints the prompt bytes or the TEE endpoint.
  *
@@ -39,8 +40,11 @@ import {
 } from "@inference-market/client";
 
 const modelId = process.argv[2] ?? DEFAULT_MODEL_ID;
-const spec = modelById(modelId);
-if (!spec) throw new Error(`unknown model id ${modelId}`);
+const found = modelById(modelId);
+if (!found) throw new Error(`unknown model id ${modelId}`);
+// Bound after the check so the narrowing survives into the function below;
+// TypeScript re-widens a module-level binding inside a closure.
+const spec = found;
 
 const requester = Keypair.fromSecretKey(
   new Uint8Array(JSON.parse(fs.readFileSync(`${process.env.HOME}/.config/solana/id.json`, "utf8"))),
@@ -103,10 +107,24 @@ async function main() {
   const { erSig, commitSig } = await finishJob(erProg, requester.publicKey, job, "approve", false);
   console.log(`approved · er ${erSig.slice(0, 12)}… · commit ${String(commitSig).slice(0, 12)}…`);
   await waitForUndelegation(base, job);
-  await settleDirect(baseProg, requester.publicKey, job);
+  // Whoever gets there first wins, and either outcome is a pass. A running
+  // worker reconciles its own unpaid escrows, so by the time this script asks
+  // for a direct settle the provider may already have been paid; the program
+  // answers that with AlreadySettled. What matters is that the escrow ends up
+  // paid and the lamports moved, not which of the two transactions moved them.
+  let settledBy = "requester";
+  try {
+    await settleDirect(baseProg, requester.publicKey, job);
+  } catch (e: any) {
+    if (!String(e?.message ?? e).includes("AlreadySettled")) throw e;
+    settledBy = "provider reconcile";
+  }
   const escrow: any = await baseProg.account.escrow.fetch(escrowPda(job));
   const after = await base.getBalance(providerWallet);
-  console.log(`settled · escrow.paid=${escrow.paid} · provider +${((after - before) / LAMPORTS_PER_SOL).toFixed(4)} SOL`);
+  if (!escrow.paid) throw new Error("escrow is not marked paid after settlement");
+  console.log(
+    `settled by ${settledBy} · escrow.paid=${escrow.paid} · provider +${((after - before) / LAMPORTS_PER_SOL).toFixed(4)} SOL`,
+  );
   await closeJob(baseProg, requester.publicKey, job);
   console.log("LIVE OK");
 }
