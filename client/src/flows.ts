@@ -58,23 +58,17 @@ export const label32 = (s: string): number[] => {
 /**
  * The commitment every base-layer preflight simulates at.
  *
- * Anchor exposes a single `preflightCommitment` for both the blockhash and the
- * simulation, and neither value works for both jobs on devnet:
+ * Simulation must run against **confirmed** state. Finalized lags by around
+ * twelve seconds, so a transaction touching an account that changed a moment
+ * ago — closing a job the rollup has just undelegated, say — would be simulated
+ * against the account's previous owner and rejected.
  *
- *   - The blockhash must be **finalized**. The public devnet endpoint is a
- *     pool, and a hash one node has only just confirmed can be unknown to
- *     whichever node runs preflight, which surfaces as "Blockhash not found"
- *     on a perfectly valid transaction.
- *   - The simulation must be **confirmed**. Finalized state lags by around
- *     twelve seconds, so a transaction that touches an account changed a
- *     moment ago — closing a job the rollup has just undelegated, say — is
- *     simulated against the account's previous owner and rejected.
- *
- * So the two are drawn separately rather than sharing Anchor's one knob.
- * Every base-layer send in this project goes through `prepareBaseTx` and
- * `sendPreparedBaseTx`; nothing may call `.rpc()`, `sendAndConfirm`, or an
- * unprepared `wallet.sendTransaction`, all of which quietly draw a confirmed
- * blockhash and reintroduce the bug.
+ * This is separate from `BASE_BLOCKHASH_COMMITMENT` only because Anchor
+ * conflates the two under one `preflightCommitment`, and the blockhash is
+ * chosen for a different reason. Every base-layer send goes through
+ * `prepareBaseTx` and `sendPreparedBaseTx`; nothing may call `.rpc()`,
+ * `sendAndConfirm`, or an unprepared `wallet.sendTransaction`, each of which
+ * draws a blockhash of its own and escapes all of this.
  */
 export const BASE_PREFLIGHT_COMMITMENT = "confirmed" as const;
 
@@ -95,55 +89,67 @@ export const BASE_PREFLIGHT_COMMITMENT = "confirmed" as const;
  */
 export const BASE_BLOCKHASH_COMMITMENT = "confirmed" as const;
 
-/** Stamp fee payer and a finalized blockhash, and report the expiry height. */
+/**
+ * A blockhash, plus when it was drawn.
+ *
+ * The timestamp is what makes a failure legible. A Solana blockhash lives about
+ * sixty seconds and the clock starts here, not when the user clicks approve, so
+ * the only number that explains an expiry is how long the wallet held the
+ * transaction. Measured on devnet, Phantom takes twenty to thirty seconds
+ * merely to render its prompt.
+ */
+export type BaseHash = Blockhash & { drawnAt: number };
+
+/** Stamp fee payer and a fresh blockhash, and start that transaction's clock. */
 export async function prepareBaseTx(
   conn: Connection,
   tx: Transaction,
   feePayer: PublicKey,
-): Promise<Blockhash> {
+): Promise<BaseHash> {
   const bh = await conn.getLatestBlockhash(BASE_BLOCKHASH_COMMITMENT);
   tx.feePayer = feePayer;
   tx.recentBlockhash = bh.blockhash;
-  return bh;
+  return { ...bh, drawnAt: Date.now() };
 }
 
 /**
- * Thrown when the blockhash died before the transaction reached the chain,
- * which on this endpoint is usually a slow wallet prompt rather than a fault.
+ * Thrown when the blockhash died before the transaction reached the chain.
  *
- * It is worth separating from a pool split, because the two look identical from
- * the outside — both say "Blockhash not found" — and they want opposite fixes.
- * A retry helps here and nowhere else.
+ * Separate from a pool split, because the two look identical from the outside —
+ * both say "Blockhash not found" — and they want opposite fixes. Resending the
+ * same bytes cures a split and can never cure this; only a new blockhash can,
+ * and a new blockhash means a new signature.
  */
 export class BlockhashExpiredError extends Error {
-  constructor() {
-    super("The transaction expired before it reached the network. Please try again.");
+  constructor(readonly heldMs: number) {
+    super(
+      `The wallet held this transaction for ${Math.round(heldMs / 1000)} s, longer than ` +
+        `the ~60 s a Solana blockhash stays valid, so it expired before it could be sent.`,
+    );
     this.name = "BlockhashExpiredError";
   }
 }
 
+/** Has this blockhash genuinely aged out, as opposed to merely not been found? */
+async function hashExpired(conn: Connection, bh: BaseHash): Promise<boolean> {
+  const height = await conn.getBlockHeight("confirmed").catch(() => 0);
+  return height > bh.lastValidBlockHeight;
+}
+
 /**
- * Distinguish the two causes after a send has already failed. A hash drawn at
- * finalized is roughly a dozen seconds old before the wallet is even opened, so
- * a human who takes their time can outlast it.
+ * Distinguish the two causes after a send has already failed, and say how long
+ * the wallet had the transaction so the next report explains itself.
  */
 async function classifySendFailure(
   conn: Connection,
-  bh: Blockhash,
+  bh: BaseHash,
   e: unknown,
 ): Promise<never> {
   const msg = String((e as any)?.message ?? e);
   if (msg.includes("Blockhash not found") || msg.includes("block height exceeded")) {
-    const height = await conn.getBlockHeight("confirmed").catch(() => 0);
-    if (height > bh.lastValidBlockHeight) throw new BlockhashExpiredError();
+    if (await hashExpired(conn, bh)) throw new BlockhashExpiredError(Date.now() - bh.drawnAt);
   }
   throw e;
-}
-
-/** Has this blockhash genuinely aged out, as opposed to merely not been found? */
-async function hashExpired(conn: Connection, bh: Blockhash): Promise<boolean> {
-  const height = await conn.getBlockHeight("confirmed").catch(() => 0);
-  return height > bh.lastValidBlockHeight;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -168,7 +174,7 @@ const SEND_ATTEMPTS = 4;
 export async function sendPreparedBaseTx(
   conn: Connection,
   raw: Buffer | Uint8Array,
-  bh: Blockhash,
+  bh: BaseHash,
 ): Promise<string> {
   for (let attempt = 1; ; attempt++) {
     try {
@@ -191,7 +197,7 @@ export async function sendPreparedBaseTx(
 export async function confirmPreparedBaseTx(
   conn: Connection,
   sig: string,
-  bh: Blockhash,
+  bh: BaseHash,
 ): Promise<string> {
   let res;
   try {
@@ -205,14 +211,50 @@ export async function confirmPreparedBaseTx(
   return sig;
 }
 
+/**
+ * Sign and send, drawing a new blockhash and asking again if the wallet held
+ * the first one past its life.
+ *
+ * This is the answer to a wallet that is slower than a blockhash. Nothing here
+ * can extend those sixty seconds and nothing can make Phantom open faster, so
+ * the choice is between losing the user's work and asking once more with a
+ * fresh hash. The second prompt is the cheap one: the extension is already
+ * warm and the user is still sitting in front of it.
+ *
+ * `build` must produce a *new* transaction each time, because the blockhash is
+ * signed over and cannot be swapped on a transaction that is already signed.
+ * One extra round only — a wallet that misses twice is not going to make it,
+ * and a loop of wallet prompts is worse than a clear failure.
+ */
+export async function signSendWithFreshHash(
+  conn: Connection,
+  feePayer: PublicKey,
+  build: () => Promise<Transaction>,
+  sign: (tx: Transaction) => Promise<Transaction>,
+): Promise<string> {
+  for (let round = 0; ; round++) {
+    const tx = await build();
+    const bh = await prepareBaseTx(conn, tx, feePayer);
+    const signed = await sign(tx);
+    try {
+      return await sendPreparedBaseTx(conn, signed.serialize(), bh);
+    } catch (e) {
+      if (round === 0 && e instanceof BlockhashExpiredError) continue;
+      throw e;
+    }
+  }
+}
+
 /** Send one base-layer instruction built by Anchor. */
 async function baseRpc(base: AnyProgram, builder: any): Promise<string> {
   const provider = base.provider as anchor.AnchorProvider;
   const conn = provider.connection;
-  const tx: Transaction = await builder.transaction();
-  const bh = await prepareBaseTx(conn, tx, provider.wallet.publicKey);
-  const signed = await provider.wallet.signTransaction(tx);
-  return sendPreparedBaseTx(conn, signed.serialize(), bh);
+  return signSendWithFreshHash(
+    conn,
+    provider.wallet.publicKey,
+    () => builder.transaction(),
+    (tx) => provider.wallet.signTransaction(tx),
+  );
 }
 
 export async function registerProvider(
@@ -413,7 +455,7 @@ export type OpenJobPlan = {
   /** Packed byte size of each transaction, in order. */
   sizes: number[];
   /** The blockhash the plan is stamped with, and the height it expires at. */
-  blockhash: Blockhash;
+  blockhash: BaseHash;
 };
 
 /**
@@ -447,7 +489,8 @@ export async function buildOpenJobTxs(
   // Drawn last, after the instructions are built, so the clock starts as late
   // as possible: everything after this races a slow Phantom prompt. See
   // `BASE_BLOCKHASH_COMMITMENT` for why this is not `finalized`.
-  const blockhash = await conn.getLatestBlockhash(BASE_BLOCKHASH_COMMITMENT);
+  const drawn = await conn.getLatestBlockhash(BASE_BLOCKHASH_COMMITMENT);
+  const blockhash: BaseHash = { ...drawn, drawnAt: Date.now() };
   const txs = packInstructions(ixs, requester, blockhash.blockhash);
   for (const tx of txs) tx.feePayer = requester;
   return { job: jobPda(requester, nonce), txs, sizes: txs.map(packedSize), blockhash };
@@ -471,36 +514,53 @@ export async function openJob(
   validator: PublicKey,
   topUpLamports = 0,
 ): Promise<{ job: PublicKey; sigs: string[]; sizes: number[] }> {
-  const plan = await buildOpenJobTxs(
-    base,
-    requester,
-    nonce,
-    priceLamports,
-    deadlineUnix,
-    model,
-    validator,
-    topUpLamports,
-  );
-  // Deliberately not `AnchorProvider.sendAll`: it fetches a second blockhash of
-  // its own and overwrites the one this plan carries, which both wastes a round
-  // trip in front of the wallet prompt and reinstates the confirmed-commitment
-  // hash that this path exists to avoid.
+  // Deliberately not `AnchorProvider.sendAll`: it draws a second blockhash of
+  // its own and overwrites the one the plan carries, wasting a round trip in
+  // front of the wallet prompt and escaping every guarantee here.
   const provider = base.provider as anchor.AnchorProvider;
   const conn = provider.connection;
   const wallet = provider.wallet;
 
-  const signed =
-    typeof wallet.signAllTransactions === "function"
-      ? await wallet.signAllTransactions(plan.txs)
-      : await Promise.all(plan.txs.map((tx) => wallet.signTransaction(tx)));
+  // Rebuilt from scratch on the retry, so the second attempt gets a fresh
+  // blockhash rather than the corpse of the first. The nonce is fixed by the
+  // caller, so both rounds address the same job account.
+  const plan = () =>
+    buildOpenJobTxs(
+      base,
+      requester,
+      nonce,
+      priceLamports,
+      deadlineUnix,
+      model,
+      validator,
+      topUpLamports,
+    );
 
-  // Sent one at a time and each confirmed before the next: `create_job` has to
-  // land before the delegations that follow it.
-  const sigs: string[] = [];
-  for (const tx of signed) {
-    sigs.push(await sendPreparedBaseTx(conn, tx.serialize(), plan.blockhash));
+  for (let round = 0; ; round++) {
+    const p = await plan();
+    const signed =
+      typeof wallet.signAllTransactions === "function"
+        ? await wallet.signAllTransactions(p.txs)
+        : await Promise.all(p.txs.map((tx) => wallet.signTransaction(tx)));
+
+    try {
+      // Sent one at a time and each confirmed before the next: `create_job` has
+      // to land before the delegations that follow it.
+      const sigs: string[] = [];
+      for (const tx of signed) {
+        sigs.push(await sendPreparedBaseTx(conn, tx.serialize(), p.blockhash));
+      }
+      return { job: p.job, sigs, sizes: p.sizes };
+    } catch (e) {
+      // Only ever retried when nothing landed. A plan that split and got part
+      // way through has already created the job, and asking again would try to
+      // create it a second time; `create_job` is first, so a failure on any
+      // later part means the retry must not restart the whole plan.
+      const nothingLanded = signed.length === 1;
+      if (round === 0 && nothingLanded && e instanceof BlockhashExpiredError) continue;
+      throw e;
+    }
   }
-  return { job: plan.job, sigs, sizes: plan.sizes };
 }
 
 // ---------------------------------------------------------------------------

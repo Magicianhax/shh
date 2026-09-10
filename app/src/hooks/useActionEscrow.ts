@@ -9,6 +9,7 @@ import {
   BASE_PREFLIGHT_COMMITMENT,
   confirmPreparedBaseTx,
   prepareBaseTx,
+  signSendWithFreshHash,
   topUpActionEscrowIx,
 } from "@inference-market/client";
 import { withRpcPriority } from "../lib/rpc-priority";
@@ -51,17 +52,28 @@ export function useActionEscrow(connection: Connection, wallet: WalletContextSta
       // Background polling stands aside until this lands; those sweeps are what
       // get a send served by a node that has not caught up.
       return await withRpcPriority(async () => {
-        const tx = new Transaction().add(topUpActionEscrowIx(owner, TOP_UP_LAMPORTS));
-        // Left to itself the wallet adapter draws its own blockhash and
-        // preflights against it, which is the "Blockhash not found" that
-        // `prepareBaseTx` exists to take out of its hands.
-        const bh = await prepareBaseTx(connection, tx, owner);
-        const sig = await wallet.sendTransaction(tx, connection, {
-          preflightCommitment: BASE_PREFLIGHT_COMMITMENT,
-        });
-        // Against the hash the transaction was actually signed with. Fetching a
-        // fresh one here would wait on an expiry the transaction never had.
-        await confirmPreparedBaseTx(connection, sig, bh);
+        const build = async () =>
+          new Transaction().add(topUpActionEscrowIx(owner, TOP_UP_LAMPORTS));
+
+        const signTx = wallet.signTransaction?.bind(wallet);
+        let sig: string;
+        if (signTx) {
+          // The shared path: stamped before the wallet sees it, and rebuilt with
+          // a live blockhash if the wallet holds it past sixty seconds.
+          sig = await signSendWithFreshHash(connection, owner, build, signTx);
+        } else {
+          // A wallet with no `signTransaction` can only be handed the whole job.
+          // It draws its own blockhash unless the transaction already carries
+          // one, so stamp it first and lose only the re-prompt on expiry.
+          const tx = await build();
+          const bh = await prepareBaseTx(connection, tx, owner);
+          sig = await wallet.sendTransaction(tx, connection, {
+            preflightCommitment: BASE_PREFLIGHT_COMMITMENT,
+          });
+          // Against the hash it was actually signed with; a fresh one here would
+          // wait on an expiry this transaction never had.
+          await confirmPreparedBaseTx(connection, sig, bh);
+        }
         await refresh();
         return sig;
       });
