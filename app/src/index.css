@@ -54,7 +54,7 @@
   --ink-3: oklch(45% 0.012 60);
   --muted: oklch(50% 0.012 60);
   --muted-2: oklch(55% 0.012 60);
-  --faint: oklch(60% 0.01 60);
+  --faint: oklch(54% 0.012 60);
 
   /* hairlines, softest to strongest */
   --hair-0: oklch(94% 0.008 80);
@@ -64,7 +64,7 @@
   --hair-4: oklch(88% 0.01 80);
 
   /* accent */
-  --acc: oklch(58% 0.09 175);
+  --acc: oklch(52% 0.09 175);
   --acc-hover: oklch(54% 0.09 175);
   --on-acc: oklch(99% 0.005 80);
   --acc-deep: oklch(45% 0.07 175);
@@ -98,7 +98,7 @@
 
   /* status */
   --live: oklch(62% 0.13 160);
-  --wait: oklch(75% 0.05 80);
+  --wait: oklch(62% 0.11 75);
   --bad: oklch(55% 0.16 25);
   --bad-soft: oklch(96% 0.03 25);
   --bad-ink: oklch(38% 0.14 25);

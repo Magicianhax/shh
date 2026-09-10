@@ -296,3 +296,27 @@ elsewhere, so the risk is composition rather than colour.
 The provider page's "Still trust" styling named in the brief does not exist on
 that route in this working tree; the class it refers to lives only on the
 landing page, where it is covered above.
+
+## Light-theme contrast repair (controller, 2026-09-10)
+
+Lifting the literals onto tokens exposed three light values below their floor.
+They were pre-existing Calm values, invisible while buried in the stylesheet.
+Measured by rasterising each token pair to sRGB in the browser and computing
+the WCAG ratio, before and after:
+
+| Token | Role | Floor | Before | After | Change |
+| --- | --- | --- | --- | --- | --- |
+| `--faint` | placeholder and hint text | 4.5 | 3.76 | 4.84 | L 60% to 54% |
+| `--on-acc` on `--acc` | label on the accent button | 4.5 | 3.94 | 5.05 | accent L 58% to 52% |
+| `--wait` | pending status dot | 3.0 | 2.12 | 3.50 | L 75% C 0.05 to L 62% C 0.11 |
+
+The accent moved rather than the label, because the label is already near
+white. A deeper sage also reads better on a warm ground. `--live` sits at
+3.27 against the canvas, which clears the 3.0 floor for a non-text indicator.
+
+The fourth item, the selected-tab separation, is left as it is: that state is
+carried by weight, an inset shadow and `aria-current`, not by colour alone,
+and raising the fill would visibly coarsen the toggle.
+
+Dark was already clear throughout; its lowest pair is faint on the raised
+surface at 4.64.
