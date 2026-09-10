@@ -9,10 +9,12 @@ import {
   authedTeeConnection,
   loadProgram,
   routerConnection,
+  teeConnectionFromToken,
   teeIdentity,
 } from "@inference-market/client";
 import type { AnyProgram } from "@inference-market/client";
 import { errText } from "../lib/format";
+import { clearSession, loadSession, renewDelayMs, saveSession } from "../lib/tee-session";
 
 export type Market = {
   /** Program bound to Solana devnet. Null until a wallet that can sign is connected. */
@@ -31,8 +33,14 @@ export type Market = {
   reconnectTee: () => void;
 };
 
-/** Re-authenticate this many seconds before the TEE token lapses. */
-const RENEW_LEAD_SECS = 60;
+/**
+ * The rollup session is opened with a signed challenge, so every re-run of the
+ * effect below costs the user a wallet dialog. It must therefore run only when
+ * the connected key changes or the token is genuinely near expiry: a cached
+ * token is reused across reloads, and the renewal timer is scheduled through
+ * `renewDelayMs`, which refuses delays past the 32-bit ceiling instead of
+ * letting `setTimeout` truncate them and fire at once.
+ */
 
 export function useMarket(): Market {
   const { connection } = useConnection();
@@ -83,10 +91,20 @@ export function useMarket(): Market {
 
     (async () => {
       try {
-        const [{ connection: tee, expiresAt }, identity] = await Promise.all([
-          authedTeeConnection(TEE_URL, w.publicKey!, w.signMessage!),
+        const cached = loadSession(owner);
+        const [session, identity] = await Promise.all([
+          cached
+            ? Promise.resolve({
+                connection: teeConnectionFromToken(TEE_URL, cached.token),
+                expiresAt: cached.expiresAt,
+              })
+            : authedTeeConnection(TEE_URL, w.publicKey!, w.signMessage!).then((s) => {
+                saveSession(owner, { token: s.token, expiresAt: s.expiresAt });
+                return { connection: s.connection, expiresAt: s.expiresAt };
+              }),
           teeIdentity(TEE_URL),
         ]);
+        const { connection: tee, expiresAt } = session;
         if (cancelled) return;
         setEr(
           loadProgram(
@@ -97,12 +115,18 @@ export function useMarket(): Market {
         );
         setValidator(identity);
 
-        const msUntilRenew = (expiresAt - RENEW_LEAD_SECS) * 1000 - Date.now();
-        if (Number.isFinite(msUntilRenew) && msUntilRenew > 0) {
-          renewTimer = window.setTimeout(() => setAttempt((n) => n + 1), msUntilRenew);
+        const due = renewDelayMs(expiresAt);
+        if (due !== null) {
+          renewTimer = window.setTimeout(() => {
+            clearSession(owner);
+            setAttempt((n) => n + 1);
+          }, due);
         }
       } catch (e) {
         if (!cancelled) {
+          // A cached token the endpoint no longer honours must not be retried
+          // on the next mount, or the failure becomes permanent.
+          clearSession(owner);
           setEr(null);
           setTeeError(errText(e));
         }
@@ -117,7 +141,10 @@ export function useMarket(): Market {
     };
   }, [owner, canSignMsg, attempt]);
 
-  const reconnectTee = useCallback(() => setAttempt((n) => n + 1), []);
+  const reconnectTee = useCallback(() => {
+    if (owner) clearSession(owner);
+    setAttempt((n) => n + 1);
+  }, [owner]);
 
   return { base, er, router, validator, wallet, connection, connecting, teeError, reconnectTee };
 }

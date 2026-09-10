@@ -35,6 +35,19 @@ export type AuthedTeeConnection = {
  * `signMessage` signs the challenge with the key that will read the private
  * account; the resulting token scopes reads to that identity.
  */
+/**
+ * Build a rollup connection from a token that was already issued. The token is
+ * what the endpoint authenticates on, so a cached one lets a reload skip the
+ * signature prompt entirely.
+ */
+export function teeConnectionFromToken(teeUrl: string, token: string): Connection {
+  const sep = teeUrl.includes("?") ? "&" : "?";
+  return new Connection(`${teeUrl}${sep}token=${token}`, {
+    wsEndpoint: `${teeUrl.replace(/^http/, "ws")}${sep}token=${token}`,
+    commitment: "confirmed",
+  });
+}
+
 export async function authedTeeConnection(
   teeUrl: string,
   pubkey: PublicKey,

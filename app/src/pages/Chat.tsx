@@ -130,6 +130,7 @@ export function Chat({ market }: { market: Market }) {
    */
   const convId = active?.id ?? null;
   const autoOn = Boolean(active?.autoApprove);
+  const [autoHelp, setAutoHelp] = useState(false);
   const autoTarget = active?.messages.find(
     (m) => m.state === "submitted" && m.text && !m.decisionAttempted,
   );
@@ -236,7 +237,18 @@ export function Chat({ market }: { market: Market }) {
             </span>
           </div>
           <div className="rail-row">
-            <span id="auto-label">Auto-approve on read</span>
+            <span id="auto-label">
+              Auto-approve on read
+              <button
+                type="button"
+                className="help"
+                aria-expanded={autoHelp}
+                aria-controls="auto-help"
+                onClick={() => setAutoHelp((v) => !v)}
+              >
+                ?<span className="sr-only">What does auto-approve do?</span>
+              </button>
+            </span>
             <button
               type="button"
               role="switch"
@@ -251,6 +263,15 @@ export function Chat({ market }: { market: Market }) {
               <i />
             </button>
           </div>
+          {autoHelp && (
+            <p id="auto-help" className="rail-help">
+              Off, every answer waits for you to press Approve before the escrow pays the
+              provider. On, an answer pays as soon as it appears, so a whole conversation
+              costs one signature per message instead of two. Reading the answer first is
+              the only moment you can reject it, so leave this off unless you trust the
+              provider. It applies to this conversation only.
+            </p>
+          )}
         </div>
 
         {/* The thread head drops these on phones, so the rail is the mobile nav. */}
