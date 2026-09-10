@@ -14,6 +14,7 @@ type Props = {
   settleRunning: boolean;
   onDecide: (kind: "approve" | "reject") => void;
   onRetrySettle: () => void;
+  onRetrySend: () => void;
 };
 
 /** "sealing ✓ · delegating ✓ 41 ms · permissions ✓ · prompt ✓ · waiting…" */
@@ -31,7 +32,15 @@ function stepLine(msg: ChatMsg): string {
   return parts.join(" · ");
 }
 
-export function Message({ msg, now, busy, settleRunning, onDecide, onRetrySettle }: Props) {
+export function Message({
+  msg,
+  now,
+  busy,
+  settleRunning,
+  onDecide,
+  onRetrySettle,
+  onRetrySend,
+}: Props) {
   const [trust, setTrust] = useState(false);
   if (msg.role === "user") {
     return (
@@ -212,6 +221,16 @@ export function Message({ msg, now, busy, settleRunning, onDecide, onRetrySettle
         ) : null}
 
         {msg.state === "failed" && msg.error ? <p className="notice">{msg.error}</p> : null}
+
+        {/* Only when the turn never reached a job. Past that point the settle
+            machine owns the recovery and sending again would pay twice. */}
+        {msg.state === "failed" && !msg.job ? (
+          <div className="msg-actions">
+            <button type="button" className="btn" disabled={busy} onClick={onRetrySend}>
+              {busy ? "Sending…" : "Send again"}
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

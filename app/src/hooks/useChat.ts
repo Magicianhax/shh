@@ -98,6 +98,8 @@ export function useChat(market: Market) {
   /** Message ids whose settle half is running in this session, right now. */
   const [settling, setSettling] = useState<Record<string, true>>({});
   const sending = useRef(false);
+  /** Text of a turn to send again once its failed pair has been removed. */
+  const pendingRetry = useRef<string | null>(null);
   const storeRef = useRef(store);
   storeRef.current = store;
 
@@ -392,6 +394,47 @@ export function useChat(market: Market) {
   );
 
   /** Retry the settle half only. The decision itself is never sent twice. */
+  /**
+   * Send a failed turn again, from the user's original words.
+   *
+   * A send that fails before the job exists leaves nothing on chain, so the
+   * honest recovery is to run it from the top rather than resume it. Both the
+   * failed reply and the message that prompted it are dropped first, so `send`
+   * rebuilds the history exactly as it was; keeping them would feed the failed
+   * exchange back into the prompt.
+   *
+   * Only offered for a turn that never reached a job. Once there is a job the
+   * settle machine owns the recovery, and re-sending would pay twice.
+   */
+  const retrySend = useCallback(
+    (convId: string, msgId: string) => {
+      const conv = storeRef.current.convs.find((c) => c.id === convId);
+      const i = conv?.messages.findIndex((m) => m.id === msgId) ?? -1;
+      if (!conv || i < 1) return;
+      const failed = conv.messages[i];
+      const asked = conv.messages[i - 1];
+      if (failed.state !== "failed" || failed.job || asked.role !== "user") return;
+
+      patchConv(convId, (c) => ({
+        ...c,
+        messages: c.messages.filter((m) => m.id !== failed.id && m.id !== asked.id),
+      }));
+      // Not sent here: `send` closes over the conversation as it was rendered,
+      // so calling it now would rebuild the prompt from the history that still
+      // contains the pair just removed. The effect below runs after that
+      // removal has committed, with a `send` bound to the new history.
+      pendingRetry.current = asked.text;
+    },
+    [patchConv],
+  );
+
+  useEffect(() => {
+    const text = pendingRetry.current;
+    if (text === null) return;
+    pendingRetry.current = null;
+    void send(text);
+  }, [store, send]);
+
   const retrySettle = useCallback(
     (convId: string, msgId: string) => {
       const msg = storeRef.current.convs
@@ -545,6 +588,7 @@ export function useChat(market: Market) {
     setSettings,
     send,
     decide,
+    retrySend,
     retrySettle,
     /** True while this message's settle half is running in this session. */
     isSettleRunning: (msgId: string) => Boolean(settling[msgId]),

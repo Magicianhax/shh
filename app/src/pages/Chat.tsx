@@ -356,6 +356,7 @@ export function Chat({ market }: { market: Market }) {
                   settleRunning={chat.isSettleRunning(m.id)}
                   onDecide={(kind) => decide(m.id, kind)}
                   onRetrySettle={() => active && chat.retrySettle(active.id, m.id)}
+                  onRetrySend={() => active && chat.retrySend(active.id, m.id)}
                 />
               ))
             )}
