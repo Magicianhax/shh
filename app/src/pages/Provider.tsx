@@ -198,7 +198,7 @@ export function Provider({ market }: { market: Market }) {
             type="button"
             className="pill"
             aria-pressed={filter === ""}
-            style={filter === "" ? { background: "var(--ink)", color: "oklch(98% 0.006 80)" } : undefined}
+            style={filter === "" ? { background: "var(--solid)", color: "var(--on-solid)" } : undefined}
             onClick={() => setFilter("")}
           >
             all
@@ -209,7 +209,7 @@ export function Provider({ market }: { market: Market }) {
               type="button"
               className="pill"
               aria-pressed={filter === l}
-              style={filter === l ? { background: "var(--ink)", color: "oklch(98% 0.006 80)" } : undefined}
+              style={filter === l ? { background: "var(--solid)", color: "var(--on-solid)" } : undefined}
               onClick={() => setFilter(l)}
             >
               {l}

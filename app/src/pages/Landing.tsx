@@ -1,4 +1,5 @@
 import { ArrowIcon, CheckIcon, GlobeIcon, LockIcon, Mark } from "../components/icons";
+import { ThemeToggle } from "../components/ThemeToggle";
 import { Link } from "../router";
 import { useLastStepMs, msText } from "../lib/latency";
 
@@ -48,6 +49,7 @@ export function Landing() {
             >
               Docs
             </a>
+            <ThemeToggle />
             <Link to="/chat" className="btn btn-ink">
               Open app
             </Link>
@@ -195,7 +197,7 @@ export function Landing() {
           <div className="split-head">
             <div className="eyebrow">What stays private</div>
             <h2>Public ledger, private words.</h2>
-            <p style={{ fontSize: 15, lineHeight: 1.55, color: "oklch(45% 0.012 60)" }}>
+            <p style={{ fontSize: 15, lineHeight: 1.55, color: "var(--ink-3)" }}>
               Everything money-related is verifiable on Solana. Everything language-related never
               leaves the enclave in the clear.
             </p>
@@ -293,7 +295,7 @@ export function Landing() {
                 maxWidth: 560,
                 fontSize: 16,
                 lineHeight: 1.55,
-                color: "oklch(45% 0.012 60)",
+                color: "var(--ink-3)",
               }}
             >
               Run the worker with an OpenAI, Anthropic, or Ollama backend and it serves every model
@@ -307,7 +309,7 @@ export function Landing() {
           </div>
 
           <div className="stat-card">
-            <div style={{ fontSize: 12, color: "oklch(55% 0.012 60)" }}>
+            <div style={{ fontSize: 12, color: "var(--muted-2)" }}>
               <span>Sample provider · devnet</span>
               <span className="mono">illustrative</span>
             </div>

@@ -64,7 +64,7 @@ export function Message({ msg, now, busy, settleRunning, onDecide, onRetrySettle
 
   return (
     <div className={`msg-bot${msg.state === "submitted" ? " fade" : ""}`}>
-      <span className="mark" style={{ color: "oklch(99% 0.005 80)" }}>
+      <span className="mark" style={{ color: "var(--on-acc)" }}>
         <LockIcon size={14} />
       </span>
 

@@ -1,5 +1,6 @@
 import { WalletChip } from "./WalletChip";
 import { Mark } from "./icons";
+import { ThemeToggle } from "./ThemeToggle";
 import { Link } from "../router";
 import type { Route } from "../router";
 import type { Market } from "../hooks/useMarket";
@@ -35,6 +36,7 @@ export function AppNav({ market, route }: Props) {
       </div>
 
       <div className="appnav-right">
+        <ThemeToggle />
         <span className="tee" title={tee.detail}>
           <i className={`dot ${tee.live ? "dot-live" : tee.live === false ? "dot-bad" : "dot-wait"}`} />
           <span>{tee.label}</span>

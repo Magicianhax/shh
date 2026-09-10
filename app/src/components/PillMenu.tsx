@@ -51,7 +51,7 @@ export function PillMenu({ label, value, options, onChange, name, disabled }: Pr
             borderRadius: 14,
             background: "var(--s1)",
             border: "1px solid var(--hair-2)",
-            boxShadow: "0 18px 40px -26px oklch(40% 0.03 175)",
+            boxShadow: "var(--sh-pop)",
             display: "flex",
             flexDirection: "column",
             gap: 2,

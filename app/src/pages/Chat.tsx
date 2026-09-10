@@ -4,6 +4,7 @@ import { FaucetBanner } from "../components/FaucetBanner";
 import { Message } from "../components/Message";
 import { ModelPicker } from "../components/ModelPicker";
 import { PillMenu } from "../components/PillMenu";
+import { ThemeToggle } from "../components/ThemeToggle";
 import { WalletChip } from "../components/WalletChip";
 import { CloseIcon, MenuIcon, Mark, PlusIcon, SendIcon } from "../components/icons";
 import { useChat } from "../hooks/useChat";
@@ -172,6 +173,7 @@ export function Chat({ market }: { market: Market }) {
             <Mark size={22} />
             Shh
           </Link>
+          <ThemeToggle />
         </div>
 
         <button

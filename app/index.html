@@ -4,8 +4,32 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="color-scheme" content="light" />
     <meta name="theme-color" content="#faf9f5" />
+    <!--
+      Resolve the theme before the first paint: a stored choice if there is
+      one, the OS preference otherwise. Anything else in storage counts as
+      unset. Without this a dark-preferring visitor gets a white flash while
+      the bundle loads. index.css owns color-scheme, so the browser's own
+      chrome follows the same attribute.
+    -->
+    <script>
+      (function () {
+        try {
+          var v = localStorage.getItem("shh-theme");
+          var t =
+            v === "light" || v === "dark"
+              ? v
+              : matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          document.documentElement.setAttribute("data-theme", t);
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute("content", t === "dark" ? "#171510" : "#faf9f5");
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      })();
+    </script>
     <meta
       name="description"
       content="Shh — the chain sees the money, never the words. Ask anything. Only the provider you choose can read it. Private inference sealed in a TEE-backed rollup and settled on Solana."

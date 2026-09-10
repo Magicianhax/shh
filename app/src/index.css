@@ -11,32 +11,118 @@
    Every interactive control is at least 44px tall.
    ====================================================================== */
 
+/* =========================================================================
+   Tokens.
+
+   Every colour in this file comes from a token: there is no raw oklch()
+   outside the three blocks below. Light is the Calm design, unchanged. Dark
+   is its night ground, and it is not an inversion — three roles that light
+   happens to draw with the same near-black are separate tokens here, because
+   dark needs them to part company:
+
+     --ink     the text colour
+     --solid   the near-black object: primary button, wallet pill, filter chip
+     --deep    the counter-surface: the ledger's view of a job, the sealed
+               rollup card, the trust gap. Always the deepest thing on the
+               page, in both themes, so the pairing it belongs to survives.
+
+   The dark values appear twice on purpose. Once under the attribute the boot
+   script in index.html writes before first paint, and once under the system
+   preference for the case where that script never ran. The attribute wins in
+   both directions, so the toggle always beats the OS. Keep the two copies in
+   the same order as :root, and add a new role to all three at once.
+   ====================================================================== */
+
 :root {
+  color-scheme: light;
+
+  /* ground, then the surfaces that sit on it */
   --canvas: oklch(98.2% 0.006 80);
-  --ink: oklch(22% 0.012 60);
-  --ink-2: oklch(42% 0.012 60);
-  --muted: oklch(50% 0.012 60);
-  --faint: oklch(60% 0.01 60);
-
-  --acc: oklch(58% 0.09 175);
-  --acc-deep: oklch(45% 0.07 175);
-  --acc-link: oklch(40% 0.07 175);
-  --acc-soft: oklch(93% 0.035 175);
-
   --s1: oklch(99.4% 0.004 80);
   --s2: oklch(97% 0.008 80);
   --s3: oklch(96.5% 0.012 80);
   --s4: oklch(95% 0.008 80);
+  /* A band that holds raised cards, and the on state of a tab inside a
+     track. Both sit on the far side of the canvas from their children, so
+     neither can ride the s-ladder: it runs the other way in dark. */
+  --band: oklch(96.5% 0.012 80);
+  --tab-on: oklch(99.4% 0.004 80);
 
+  /* text, strongest to quietest */
+  --ink: oklch(22% 0.012 60);
+  --ink-2: oklch(42% 0.012 60);
+  --ink-3: oklch(45% 0.012 60);
+  --muted: oklch(50% 0.012 60);
+  --muted-2: oklch(55% 0.012 60);
+  --faint: oklch(60% 0.01 60);
+
+  /* hairlines, softest to strongest */
+  --hair-0: oklch(94% 0.008 80);
   --hair: oklch(92% 0.01 80);
   --hair-2: oklch(91% 0.01 80);
   --hair-3: oklch(90% 0.01 80);
   --hair-4: oklch(88% 0.01 80);
 
+  /* accent */
+  --acc: oklch(58% 0.09 175);
+  --acc-hover: oklch(54% 0.09 175);
+  --on-acc: oklch(99% 0.005 80);
+  --acc-deep: oklch(45% 0.07 175);
+  --acc-link: oklch(40% 0.07 175);
+  --acc-link-hover: oklch(32% 0.08 175);
+  --acc-soft: oklch(93% 0.035 175);
+  --acc-quiet: oklch(50% 0.04 175);
+  --acc-edge: oklch(80% 0.04 175);
+  --acc-edge-soft: oklch(85% 0.03 175);
+
+  /* the solid object */
+  --solid: oklch(22% 0.012 60);
+  --solid-hover: oklch(28% 0.012 60);
+  --on-solid: oklch(98% 0.006 80);
+
+  /* the counter-surface */
+  --deep: oklch(22% 0.012 60);
+  --deep-edge: oklch(22% 0.012 60);
+  --on-deep: oklch(92% 0.006 80);
+  --on-deep-2: oklch(82% 0.008 80);
+  --on-deep-muted: oklch(62% 0.01 60);
+  --hair-deep: oklch(32% 0.012 60);
+  --acc-on-deep: oklch(70% 0.06 175);
+  --acc-on-deep-hi: oklch(80% 0.05 175);
+  --live-on-deep: oklch(70% 0.12 160);
+
+  /* the sealed reveal */
+  --seal-bg: oklch(97% 0.008 80);
+  --seal-rim: none;
+  --seal-dim: 1;
+
+  /* status */
   --live: oklch(62% 0.13 160);
   --wait: oklch(75% 0.05 80);
   --bad: oklch(55% 0.16 25);
+  --bad-soft: oklch(96% 0.03 25);
+  --bad-ink: oklch(38% 0.14 25);
 
+  /* toasts */
+  --toast-bg: oklch(22% 0.012 60);
+  --toast-ink: oklch(97% 0.006 80);
+  --toast-bad-bg: oklch(30% 0.08 25);
+
+  /* depth */
+  --knob: oklch(99% 0 0);
+  --sh-knob: 0 1px 2px oklch(0% 0 0 / 0.15);
+  --sh-toggle: 0 1px 2px oklch(0% 0 0 / 0.06);
+  --sh-card: 0 1px 0 oklch(100% 0 0) inset, 0 30px 60px -40px oklch(40% 0.03 175);
+  --sh-composer: 0 20px 40px -30px oklch(40% 0.03 175);
+  --sh-pop: 0 18px 40px -26px oklch(40% 0.03 175);
+  --sh-row: 0 12px 30px -24px oklch(40% 0.03 175);
+  --sh-toast: 0 20px 40px -28px oklch(0% 0 0 / 0.8);
+  --sh-modal: 0 30px 60px -30px oklch(0% 0 0 / 0.5);
+  --sh-rail: 0 0 60px -20px oklch(0% 0 0 / 0.35);
+  --scrim: oklch(22% 0.012 60 / 0.3);
+  --scrim-modal: oklch(22% 0.012 60 / 0.42);
+
+  /* type and geometry: the same in both themes */
   --display: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
   --sans: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
@@ -44,6 +130,179 @@
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --rail: 264px;
   --thread: 760px;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --canvas: oklch(19.5% 0.009 80);
+  --s1: oklch(23% 0.009 80);
+  --s2: oklch(26% 0.009 80);
+  --s3: oklch(28.5% 0.01 80);
+  --s4: oklch(31.5% 0.01 80);
+  --band: oklch(16.5% 0.009 80);
+  --tab-on: oklch(38% 0.011 80);
+
+  --ink: oklch(94.5% 0.006 80);
+  --ink-2: oklch(81% 0.008 80);
+  --ink-3: oklch(77% 0.008 80);
+  --muted: oklch(71% 0.009 80);
+  --muted-2: oklch(67% 0.009 80);
+  --faint: oklch(62% 0.009 80);
+
+  --hair-0: oklch(27% 0.007 80);
+  --hair: oklch(29.5% 0.008 80);
+  --hair-2: oklch(31.5% 0.008 80);
+  --hair-3: oklch(34% 0.009 80);
+  --hair-4: oklch(38% 0.009 80);
+
+  --acc: oklch(72% 0.105 175);
+  --acc-hover: oklch(79% 0.105 175);
+  --on-acc: oklch(18% 0.02 175);
+  --acc-deep: oklch(79% 0.075 175);
+  --acc-link: oklch(81% 0.08 175);
+  --acc-link-hover: oklch(89% 0.06 175);
+  --acc-soft: oklch(31% 0.05 175);
+  --acc-quiet: oklch(67% 0.05 175);
+  --acc-edge: oklch(50% 0.07 175);
+  --acc-edge-soft: oklch(42% 0.05 175);
+
+  /* Warm stone, not white: at pill scale this reads as the one solid object
+     on the page without becoming a lamp. */
+  --solid: oklch(78% 0.016 85);
+  --solid-hover: oklch(84% 0.016 85);
+  --on-solid: oklch(17% 0.01 80);
+
+  /* Below the canvas, not above it, with a lit rim. The ledger's view stays
+     a well and the conversation beside it stays the raised sheet. */
+  --deep: oklch(13.5% 0.008 80);
+  --deep-edge: oklch(24% 0.008 80);
+  --on-deep: oklch(89% 0.006 80);
+  --on-deep-2: oklch(78% 0.007 80);
+  --on-deep-muted: oklch(66% 0.008 80);
+  --hair-deep: oklch(22% 0.008 80);
+  --acc-on-deep: oklch(75% 0.075 175);
+  --acc-on-deep-hi: oklch(83% 0.06 175);
+  --live-on-deep: oklch(74% 0.13 160);
+
+  /* Withheld, not merely dim: recessed into the deep family, rimmed, and the
+     blurred text held back until the reveal restores it. */
+  --seal-bg: oklch(14% 0.008 80);
+  --seal-rim: inset 0 0 0 1px oklch(25% 0.009 80);
+  --seal-dim: 0.62;
+
+  --live: oklch(72% 0.13 160);
+  --wait: oklch(78% 0.06 85);
+  --bad: oklch(71% 0.145 25);
+  --bad-soft: oklch(29% 0.05 25);
+  --bad-ink: oklch(87% 0.08 25);
+
+  --toast-bg: oklch(30% 0.011 80);
+  --toast-ink: oklch(93% 0.006 80);
+  --toast-bad-bg: oklch(34% 0.09 25);
+
+  --knob: oklch(93% 0.006 80);
+  --sh-knob: 0 1px 2px oklch(0% 0 0 / 0.5);
+  --sh-toggle: 0 1px 2px oklch(0% 0 0 / 0.4);
+  --sh-card: 0 1px 0 oklch(30% 0.008 80) inset, 0 30px 60px -34px oklch(0% 0 0 / 0.85);
+  --sh-composer: 0 20px 40px -26px oklch(0% 0 0 / 0.8);
+  --sh-pop: 0 18px 40px -22px oklch(0% 0 0 / 0.85);
+  --sh-row: 0 12px 30px -20px oklch(0% 0 0 / 0.7);
+  --sh-toast: 0 20px 40px -24px oklch(0% 0 0 / 0.9);
+  --sh-modal: 0 30px 60px -26px oklch(0% 0 0 / 0.9);
+  --sh-rail: 0 0 60px -16px oklch(0% 0 0 / 0.75);
+  --scrim: oklch(0% 0 0 / 0.55);
+  --scrim-modal: oklch(0% 0 0 / 0.62);
+}
+
+/* No stored choice and no boot script: follow the OS. An explicit "light"
+   still wins, so this never overrides the toggle. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --canvas: oklch(19.5% 0.009 80);
+    --s1: oklch(23% 0.009 80);
+    --s2: oklch(26% 0.009 80);
+    --s3: oklch(28.5% 0.01 80);
+    --s4: oklch(31.5% 0.01 80);
+    --band: oklch(16.5% 0.009 80);
+    --tab-on: oklch(38% 0.011 80);
+
+    --ink: oklch(94.5% 0.006 80);
+    --ink-2: oklch(81% 0.008 80);
+    --ink-3: oklch(77% 0.008 80);
+    --muted: oklch(71% 0.009 80);
+    --muted-2: oklch(67% 0.009 80);
+    --faint: oklch(62% 0.009 80);
+
+    --hair-0: oklch(27% 0.007 80);
+    --hair: oklch(29.5% 0.008 80);
+    --hair-2: oklch(31.5% 0.008 80);
+    --hair-3: oklch(34% 0.009 80);
+    --hair-4: oklch(38% 0.009 80);
+
+    --acc: oklch(72% 0.105 175);
+    --acc-hover: oklch(79% 0.105 175);
+    --on-acc: oklch(18% 0.02 175);
+    --acc-deep: oklch(79% 0.075 175);
+    --acc-link: oklch(81% 0.08 175);
+    --acc-link-hover: oklch(89% 0.06 175);
+    --acc-soft: oklch(31% 0.05 175);
+    --acc-quiet: oklch(67% 0.05 175);
+    --acc-edge: oklch(50% 0.07 175);
+    --acc-edge-soft: oklch(42% 0.05 175);
+
+    --solid: oklch(78% 0.016 85);
+    --solid-hover: oklch(84% 0.016 85);
+    --on-solid: oklch(17% 0.01 80);
+
+    --deep: oklch(13.5% 0.008 80);
+    --deep-edge: oklch(24% 0.008 80);
+    --on-deep: oklch(89% 0.006 80);
+    --on-deep-2: oklch(78% 0.007 80);
+    --on-deep-muted: oklch(66% 0.008 80);
+    --hair-deep: oklch(22% 0.008 80);
+    --acc-on-deep: oklch(75% 0.075 175);
+    --acc-on-deep-hi: oklch(83% 0.06 175);
+    --live-on-deep: oklch(74% 0.13 160);
+
+    --seal-bg: oklch(14% 0.008 80);
+    --seal-rim: inset 0 0 0 1px oklch(25% 0.009 80);
+    --seal-dim: 0.62;
+
+    --live: oklch(72% 0.13 160);
+    --wait: oklch(78% 0.06 85);
+    --bad: oklch(71% 0.145 25);
+    --bad-soft: oklch(29% 0.05 25);
+    --bad-ink: oklch(87% 0.08 25);
+
+    --toast-bg: oklch(30% 0.011 80);
+    --toast-ink: oklch(93% 0.006 80);
+    --toast-bad-bg: oklch(34% 0.09 25);
+
+    --knob: oklch(93% 0.006 80);
+    --sh-knob: 0 1px 2px oklch(0% 0 0 / 0.5);
+    --sh-toggle: 0 1px 2px oklch(0% 0 0 / 0.4);
+    --sh-card: 0 1px 0 oklch(30% 0.008 80) inset, 0 30px 60px -34px oklch(0% 0 0 / 0.85);
+    --sh-composer: 0 20px 40px -26px oklch(0% 0 0 / 0.8);
+    --sh-pop: 0 18px 40px -22px oklch(0% 0 0 / 0.85);
+    --sh-row: 0 12px 30px -20px oklch(0% 0 0 / 0.7);
+    --sh-toast: 0 20px 40px -24px oklch(0% 0 0 / 0.9);
+    --sh-modal: 0 30px 60px -26px oklch(0% 0 0 / 0.9);
+    --sh-rail: 0 0 60px -16px oklch(0% 0 0 / 0.75);
+    --scrim: oklch(0% 0 0 / 0.55);
+    --scrim-modal: oklch(0% 0 0 / 0.62);
+  }
+}
+
+/* The swap itself is instant. Without this, every transition in the file
+   would cross-fade at once and the page would smear on the way over. */
+.theme-swap,
+.theme-swap *,
+.theme-swap *::before,
+.theme-swap *::after {
+  transition: none !important;
 }
 
 * {
@@ -85,7 +344,7 @@ a {
 }
 
 a:hover {
-  color: oklch(32% 0.08 175);
+  color: var(--acc-link-hover);
 }
 
 button {
@@ -327,25 +586,25 @@ button {
 .btn-acc {
   background: var(--acc);
   border-color: var(--acc);
-  color: oklch(99% 0.005 80);
+  color: var(--on-acc);
   font-weight: 600;
 }
 
 .btn-acc:hover:not(:disabled) {
-  background: oklch(54% 0.09 175);
-  border-color: oklch(54% 0.09 175);
+  background: var(--acc-hover);
+  border-color: var(--acc-hover);
 }
 
 .btn-ink {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: oklch(98% 0.006 80);
+  background: var(--solid);
+  border-color: var(--solid);
+  color: var(--on-solid);
   font-weight: 600;
 }
 
 .btn-ink:hover:not(:disabled) {
-  background: oklch(28% 0.012 60);
-  border-color: oklch(28% 0.012 60);
+  background: var(--solid-hover);
+  border-color: var(--solid-hover);
 }
 
 .btn-lg {
@@ -562,7 +821,7 @@ textarea:focus {
   background: var(--s1);
   border: 1px solid var(--hair);
   border-radius: 28px;
-  box-shadow: 0 1px 0 oklch(100% 0 0) inset, 0 30px 60px -40px oklch(40% 0.03 175);
+  box-shadow: var(--sh-card);
 }
 
 /* --- hero: the same message, twice --------------------------------------- */
@@ -588,8 +847,8 @@ textarea:focus {
   min-height: 340px;
   padding: 22px 22px 20px;
   border-radius: 22px 0 0 22px;
-  background: var(--ink);
-  color: oklch(92% 0.006 80);
+  background: var(--deep);
+  color: var(--on-deep);
 }
 
 .views-label {
@@ -597,7 +856,7 @@ textarea:focus {
   font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: oklch(70% 0.06 175);
+  color: var(--acc-on-deep);
 }
 
 .views-label.acc {
@@ -634,13 +893,13 @@ textarea:focus {
 }
 
 .views-hash {
-  color: oklch(80% 0.05 175);
+  color: var(--acc-on-deep-hi);
 }
 
 .views-rule {
   height: 1px;
   margin: 6px 0;
-  background: oklch(32% 0.012 60);
+  background: var(--hair-deep);
 }
 
 .views-status {
@@ -654,7 +913,7 @@ textarea:focus {
   width: 6px;
   height: 6px;
   border-radius: 999px;
-  background: oklch(70% 0.12 160);
+  background: var(--live-on-deep);
 }
 
 .views-foot {
@@ -662,7 +921,7 @@ textarea:focus {
   padding-top: 18px;
   font-size: 12px;
   line-height: 1.5;
-  color: oklch(62% 0.01 60);
+  color: var(--on-deep-muted);
 }
 
 /* The seam. Its label is the whole point of the block, so it sits on the line. */
@@ -682,7 +941,7 @@ textarea:focus {
   font-size: 10px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: oklch(50% 0.04 175);
+  color: var(--acc-quiet);
 }
 
 .views-parties {
@@ -724,7 +983,7 @@ textarea:focus {
   height: 24px;
   border-radius: 8px;
   background: var(--acc);
-  color: oklch(99% 0.005 80);
+  color: var(--on-acc);
 }
 
 .views-settled {
@@ -827,7 +1086,7 @@ textarea:focus {
 .step4 span {
   font-size: 15px;
   line-height: 1.55;
-  color: oklch(45% 0.012 60);
+  color: var(--ink-3);
 }
 
 .two {
@@ -866,7 +1125,7 @@ textarea:focus {
   justify-content: space-between;
   gap: 16px;
   padding: 12px 0;
-  border-bottom: 1px solid oklch(94% 0.008 80);
+  border-bottom: 1px solid var(--hair-0);
   font-size: 14px;
 }
 
@@ -875,18 +1134,18 @@ textarea:focus {
 }
 
 .ledger.dark {
-  background: var(--ink);
-  color: oklch(96% 0.006 80);
-  border-color: var(--ink);
+  background: var(--deep);
+  color: var(--on-deep);
+  border-color: var(--deep-edge);
 }
 
 .ledger.dark .ledger-head,
 .ledger.dark .ledger-row {
-  border-color: oklch(32% 0.012 60);
+  border-color: var(--hair-deep);
 }
 
 .ledger.dark .mono {
-  color: oklch(70% 0.06 175);
+  color: var(--acc-on-deep);
 }
 
 .providers {
@@ -894,7 +1153,7 @@ textarea:focus {
   margin-top: 120px;
   padding: 56px 64px;
   border-radius: 28px;
-  background: var(--s3);
+  background: var(--band);
   display: grid;
   grid-template-columns: minmax(0, 1fr) 380px;
   gap: 64px;
@@ -975,10 +1234,10 @@ textarea:focus {
 }
 
 .toggle a[aria-current="page"] {
-  background: var(--s1);
+  background: var(--tab-on);
   color: var(--ink);
   font-weight: 500;
-  box-shadow: 0 1px 2px oklch(0% 0 0 / 0.06);
+  box-shadow: var(--sh-toggle);
 }
 
 .appnav-right {
@@ -1064,7 +1323,7 @@ textarea:focus {
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: oklch(55% 0.012 60);
+  color: var(--muted-2);
 }
 
 .convs h4:first-child {
@@ -1164,7 +1423,7 @@ textarea:focus {
 }
 
 .rail-row > span:first-child {
-  color: oklch(45% 0.012 60);
+  color: var(--ink-3);
 }
 
 .switch {
@@ -1187,8 +1446,8 @@ textarea:focus {
   width: 16px;
   height: 16px;
   border-radius: 999px;
-  background: oklch(99% 0 0);
-  box-shadow: 0 1px 2px oklch(0% 0 0 / 0.15);
+  background: var(--knob);
+  box-shadow: var(--sh-knob);
   transition: transform 160ms var(--ease);
 }
 
@@ -1224,7 +1483,7 @@ textarea:focus {
   justify-content: space-between;
   gap: 16px;
   padding: 18px 32px;
-  border-bottom: 1px solid oklch(93% 0.008 80);
+  border-bottom: 1px solid var(--hair-0);
 }
 
 .thread-title {
@@ -1442,12 +1701,12 @@ textarea:focus {
   border-radius: 22px;
   background: var(--s1);
   border: 1px solid var(--hair-2);
-  box-shadow: 0 20px 40px -30px oklch(40% 0.03 175);
+  box-shadow: var(--sh-composer);
   transition: border-color 120ms var(--ease);
 }
 
 .composer:focus-within {
-  border-color: oklch(80% 0.04 175);
+  border-color: var(--acc-edge);
 }
 
 .composer textarea {
@@ -1541,7 +1800,7 @@ textarea:focus {
   border-radius: 14px;
   background: var(--s1);
   border: 1px solid var(--hair-2);
-  box-shadow: 0 18px 40px -26px oklch(40% 0.03 175);
+  box-shadow: var(--sh-pop);
 }
 
 .picker-group + .picker-group {
@@ -1632,7 +1891,7 @@ textarea:focus {
 .ctx {
   font-family: var(--mono);
   font-size: 12px;
-  color: oklch(55% 0.012 60);
+  color: var(--muted-2);
   margin-left: 6px;
   min-width: 0;
   overflow: hidden;
@@ -1651,14 +1910,14 @@ textarea:focus {
   border: 0;
   border-radius: 999px;
   background: var(--acc);
-  color: oklch(99% 0.005 80);
+  color: var(--on-acc);
   cursor: pointer;
   transition: background-color 120ms var(--ease), transform 120ms var(--ease),
     opacity 120ms var(--ease);
 }
 
 .send:hover:not(:disabled) {
-  background: oklch(54% 0.09 175);
+  background: var(--acc-hover);
 }
 
 .send:active:not(:disabled) {
@@ -1728,8 +1987,8 @@ textarea:focus {
 
 .row[aria-selected="true"] {
   background: var(--s1);
-  border-color: oklch(85% 0.03 175);
-  box-shadow: 0 12px 30px -24px oklch(40% 0.03 175);
+  border-color: var(--acc-edge-soft);
+  box-shadow: var(--sh-row);
 }
 
 .row-title {
@@ -1882,7 +2141,7 @@ textarea:focus {
 
 .escrow span {
   font-size: 13px;
-  color: oklch(45% 0.012 60);
+  color: var(--ink-3);
 }
 
 /* --- sealed -------------------------------------------------------------- */
@@ -1899,7 +2158,8 @@ textarea:focus {
   position: relative;
   padding: 18px 20px;
   border-radius: 16px;
-  background: var(--s2);
+  background: var(--seal-bg);
+  box-shadow: var(--seal-rim);
   font-size: 15px;
   line-height: 1.6;
   min-height: 150px;
@@ -1909,12 +2169,16 @@ textarea:focus {
   white-space: pre-wrap;
   word-break: break-word;
   filter: blur(7px);
+  /* Dark holds the sealed text back as well as blurring it, so it reads as
+     withheld rather than as a bright smear. Light leaves this at 1. */
+  opacity: var(--seal-dim);
   user-select: none;
-  transition: filter 260ms var(--ease);
+  transition: filter 260ms var(--ease), opacity 260ms var(--ease);
 }
 
 .seal.open .seal-text {
   filter: none;
+  opacity: 1;
   user-select: auto;
 }
 
@@ -1941,7 +2205,7 @@ textarea:focus {
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: oklch(45% 0.012 60);
+  color: var(--ink-3);
 }
 
 /* --- provider ------------------------------------------------------------ */
@@ -2187,18 +2451,18 @@ textarea:focus {
   gap: 12px;
   padding: 12px 14px;
   border-radius: 14px;
-  background: var(--ink);
-  color: oklch(97% 0.006 80);
+  background: var(--toast-bg);
+  color: var(--toast-ink);
   font-family: var(--mono);
   font-size: 12px;
   line-height: 1.5;
-  box-shadow: 0 20px 40px -28px oklch(0% 0 0 / 0.8);
+  box-shadow: var(--sh-toast);
   pointer-events: auto;
   animation: rise 220ms var(--ease) both;
 }
 
 .toast.err {
-  background: oklch(30% 0.08 25);
+  background: var(--toast-bad-bg);
 }
 
 .toast p {
@@ -2304,7 +2568,7 @@ textarea:focus {
     max-width: 86vw;
     transform: translateX(-100%);
     transition: transform 220ms var(--ease);
-    box-shadow: 0 0 60px -20px oklch(0% 0 0 / 0.35);
+    box-shadow: var(--sh-rail);
   }
 
   .rail.open {
@@ -2318,7 +2582,7 @@ textarea:focus {
     z-index: 69;
     border: 0;
     padding: 0;
-    background: oklch(22% 0.012 60 / 0.3);
+    background: var(--scrim);
     opacity: 0;
     pointer-events: none;
     transition: opacity 220ms var(--ease);
@@ -2632,8 +2896,8 @@ textarea:focus {
   padding: 0 16px;
   border: 0;
   border-radius: 999px;
-  background: var(--ink);
-  color: oklch(98% 0.006 80);
+  background: var(--solid);
+  color: var(--on-solid);
   font-family: var(--mono);
   font-size: 13px;
   font-weight: 400;
@@ -2644,7 +2908,7 @@ textarea:focus {
 }
 
 .wallet-chip:hover {
-  background: oklch(28% 0.012 60);
+  background: var(--solid-hover);
 }
 
 .wallet-popover {
@@ -2657,7 +2921,7 @@ textarea:focus {
   border-radius: 14px;
   background: var(--s1);
   border: 1px solid var(--hair-2);
-  box-shadow: 0 18px 40px -26px oklch(40% 0.03 175);
+  box-shadow: var(--sh-pop);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -2701,7 +2965,7 @@ textarea:focus {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: oklch(22% 0.012 60 / 0.42);
+  background: var(--scrim-modal);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   animation: wm-backdrop-in 180ms var(--ease) both;
@@ -2724,7 +2988,7 @@ textarea:focus {
   border-radius: 22px;
   background: var(--s1);
   border: 1px solid var(--hair-2);
-  box-shadow: 0 30px 60px -30px oklch(0% 0 0 / 0.5);
+  box-shadow: var(--sh-modal);
   animation: wm-card-in 200ms var(--ease) both;
 }
 
@@ -2920,8 +3184,8 @@ textarea:focus {
 .wallet-modal-error {
   padding: 10px 12px;
   border-radius: 12px;
-  background: oklch(96% 0.03 25);
-  color: oklch(38% 0.14 25);
+  background: var(--bad-soft);
+  color: var(--bad-ink);
   font-size: 12px;
   line-height: 1.5;
   word-break: break-word;
@@ -3061,6 +3325,43 @@ textarea:focus {
   color: var(--ink-2);
 }
 
+/* --- theme toggle -------------------------------------------------------- */
+
+/* Built like .help: a 22px mark with the tap target laid over it by a
+   pseudo-element, so the control reaches 44px without making the landing nav,
+   the app bar or the rail head any taller. */
+.theme-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: color 140ms var(--ease);
+}
+
+.theme-toggle::after {
+  content: "";
+  position: absolute;
+  inset: -11px;
+}
+
+.theme-toggle:hover {
+  color: var(--ink);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: 5px;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -3132,9 +3433,9 @@ textarea:focus {
   border: 1px solid var(--hair);
 }
 .trust-col-gap {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: oklch(92% 0.006 80);
+  background: var(--deep);
+  border-color: var(--deep-edge);
+  color: var(--on-deep);
 }
 .trust-col-head {
   font-family: var(--mono);
@@ -3145,7 +3446,7 @@ textarea:focus {
   margin-bottom: 14px;
 }
 .trust-col-gap .trust-col-head {
-  color: oklch(70% 0.06 175);
+  color: var(--acc-on-deep);
 }
 .trust-col ul {
   margin: 0;
@@ -3163,7 +3464,7 @@ textarea:focus {
   position: relative;
 }
 .trust-col-gap li {
-  color: oklch(82% 0.008 80);
+  color: var(--on-deep-2);
 }
 .trust-col li::before {
   content: "";
@@ -3176,7 +3477,7 @@ textarea:focus {
   background: var(--acc);
 }
 .trust-col-gap li::before {
-  background: oklch(70% 0.06 175);
+  background: var(--acc-on-deep);
 }
 
 .lede-sm {

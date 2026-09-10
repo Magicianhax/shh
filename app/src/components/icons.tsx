@@ -93,6 +93,19 @@ export const CopyIcon = ({ size = 14 }: P) => (
   </svg>
 );
 
+export const SunIcon = ({ size = 16 }: P) => (
+  <svg {...s(size)}>
+    <circle cx="12" cy="12" r="4.2" />
+    <path d="M12 2.6v2.4M12 19v2.4M2.6 12H5M19 12h2.4M5.4 5.4 7.1 7.1M16.9 16.9l1.7 1.7M18.6 5.4 16.9 7.1M7.1 16.9l-1.7 1.7" />
+  </svg>
+);
+
+export const MoonIcon = ({ size = 16 }: P) => (
+  <svg {...s(size)}>
+    <path d="M20.4 14.6A8.6 8.6 0 0 1 9.4 3.6a8.6 8.6 0 1 0 11 11Z" />
+  </svg>
+);
+
 export const RefreshIcon = ({ size = 16 }: P) => (
   <svg {...s(size, 1.8)}>
     <path d="M4 12a8 8 0 0 1 14-5.2M20 12a8 8 0 0 1-14 5.2" />
