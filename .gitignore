@@ -10,3 +10,9 @@ app/dist/
 .playwright-mcp/
 design/canvas/*.html
 !design/canvas/*.dc.html
+
+# Internal working notes: specs, plans, agent reports and scratch files.
+docs/superpowers/
+tasks/
+magiblock.txt
+*.diff
