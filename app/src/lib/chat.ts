@@ -78,7 +78,17 @@ export type Conversation = {
   messages: ChatMsg[];
 };
 
-export const STEP_NAMES = ["sealing", "delegating", "permissions", "prompt"] as const;
+/**
+ * The two signatures a message costs.
+ *
+ * "posting" is the single Solana transaction that creates the job, delegates
+ * both PDAs and, on a wallet's first message, funds the action escrow.
+ * "sealing" is the rollup sequence — permissions, prompt chunks, seal — signed
+ * in one call and sent in order. A wallet without `signAllTransactions` still
+ * runs that sequence one transaction at a time, and `useChat` renames the step
+ * to say so.
+ */
+export const STEP_NAMES = ["posting", "sealing"] as const;
 
 export const freshSteps = (): Step[] =>
   STEP_NAMES.map((name) => ({ name, ms: null, done: false }));

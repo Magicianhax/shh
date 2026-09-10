@@ -6,6 +6,7 @@ import {
   PublicKey,
   SystemProgram,
   Transaction,
+  TransactionInstruction,
 } from "@solana/web3.js";
 import {
   ConnectionMagicRouter,
@@ -69,16 +70,73 @@ export async function registerProvider(
     .rpc();
 }
 
-export async function createJob(
+/** Default ephemeral-balance top-up for scheduled Magic Actions, in lamports. */
+export const ACTION_TOP_UP_LAMPORTS = 0.01 * LAMPORTS_PER_SOL;
+
+/** Hard packet limit for a Solana transaction. */
+export const TX_SIZE_LIMIT = 1232;
+
+/** Length of a compact-u16 count, the prefix web3.js writes before the signatures. */
+const shortVecLen = (n: number): number => (n < 0x80 ? 1 : n < 0x4000 ? 2 : 3);
+
+/**
+ * Wire size of an unsigned transaction, signature placeholders included.
+ * A transaction over `TX_SIZE_LIMIT` bytes is rejected before it is ever sent.
+ *
+ * This is the same number `tx.serialize({ requireAllSignatures: false }).length`
+ * reports, computed the long way because `serialize` throws "Transaction too
+ * large" rather than returning a size — and an oversized candidate is exactly
+ * what `packInstructions` has to be able to measure and reject.
+ */
+export const packedSize = (tx: Transaction): number => {
+  const message = tx.serializeMessage();
+  const sigs = tx.signatures.length;
+  return shortVecLen(sigs) + sigs * 64 + message.length;
+};
+
+/**
+ * Greedily pack `ixs` into as few transactions as fit, preserving order.
+ *
+ * Order is load-bearing here: `create_job` must execute before either delegate
+ * instruction, so the pack never reorders and the caller sends the results in
+ * sequence.
+ */
+export function packInstructions(
+  ixs: TransactionInstruction[],
+  feePayer: PublicKey,
+  blockhash: string,
+): Transaction[] {
+  const build = (group: TransactionInstruction[]) => {
+    const tx = new Transaction();
+    for (const ix of group) tx.add(ix);
+    tx.feePayer = feePayer;
+    tx.recentBlockhash = blockhash;
+    return tx;
+  };
+
+  const out: Transaction[] = [];
+  let group: TransactionInstruction[] = [];
+  for (const ix of ixs) {
+    if (group.length > 0 && packedSize(build([...group, ix])) > TX_SIZE_LIMIT) {
+      out.push(build(group));
+      group = [];
+    }
+    group.push(ix);
+  }
+  if (group.length > 0) out.push(build(group));
+  return out;
+}
+
+export async function createJobIx(
   base: AnyProgram,
   requester: PublicKey,
   nonce: bigint,
   priceLamports: number,
   deadlineUnix: number,
   model: string,
-): Promise<{ job: PublicKey; sig: string }> {
+): Promise<TransactionInstruction> {
   const job = jobPda(requester, nonce);
-  const sig = await base.methods
+  return base.methods
     .createJob(
       new anchor.BN(nonce.toString()),
       new anchor.BN(priceLamports),
@@ -92,17 +150,16 @@ export async function createJob(
       escrow: escrowPda(job),
       systemProgram: SystemProgram.programId,
     })
-    .rpc();
-  return { job, sig };
+    .instruction();
 }
 
-/** Delegate `Job` and `JobPrivate` to `validator` in one base-layer transaction. */
-export async function delegateJob(
+/** The two instructions that hand `Job` and `JobPrivate` to `validator`. */
+export async function delegateJobIxs(
   base: AnyProgram,
   requester: PublicKey,
   nonce: bigint,
   validator: PublicKey,
-): Promise<string> {
+): Promise<TransactionInstruction[]> {
   const job = jobPda(requester, nonce);
   const jp = jobPrivatePda(job);
   const dj = delegationAccounts(job);
@@ -112,37 +169,151 @@ export async function delegateJob(
     delegationProgram: DELEGATION_PROGRAM_ID,
     systemProgram: SystemProgram.programId,
   };
-  const tx = new Transaction()
-    .add(
-      await base.methods
-        .delegateJob(new anchor.BN(nonce.toString()))
-        .accounts({
-          requester,
-          job,
-          validator,
-          bufferJob: dj.buffer,
-          delegationRecordJob: dj.record,
-          delegationMetadataJob: dj.metadata,
-          ...common,
-        })
-        .instruction(),
-    )
-    .add(
-      await base.methods
-        .delegateJobPrivate(new anchor.BN(nonce.toString()))
-        .accounts({
-          requester,
-          job,
-          jobPrivate: jp,
-          validator,
-          bufferJobPrivate: dp.buffer,
-          delegationRecordJobPrivate: dp.record,
-          delegationMetadataJobPrivate: dp.metadata,
-          ...common,
-        })
-        .instruction(),
-    );
+  return Promise.all([
+    base.methods
+      .delegateJob(new anchor.BN(nonce.toString()))
+      .accounts({
+        requester,
+        job,
+        validator,
+        bufferJob: dj.buffer,
+        delegationRecordJob: dj.record,
+        delegationMetadataJob: dj.metadata,
+        ...common,
+      })
+      .instruction(),
+    base.methods
+      .delegateJobPrivate(new anchor.BN(nonce.toString()))
+      .accounts({
+        requester,
+        job,
+        jobPrivate: jp,
+        validator,
+        bufferJobPrivate: dp.buffer,
+        delegationRecordJobPrivate: dp.record,
+        delegationMetadataJobPrivate: dp.metadata,
+        ...common,
+      })
+      .instruction(),
+  ]);
+}
+
+/**
+ * Fund `payer`'s delegation-program ephemeral balance at `ACTION_ESCROW_INDEX`,
+ * the escrow a scheduled `settle_action` is charged to. Sent on the base layer.
+ */
+export const topUpActionEscrowIx = (
+  payer: PublicKey,
+  lamports = ACTION_TOP_UP_LAMPORTS,
+): TransactionInstruction =>
+  createTopUpEscrowInstruction(
+    escrowPdaFromEscrowAuthority(payer, ACTION_ESCROW_INDEX),
+    payer,
+    payer,
+    lamports,
+    ACTION_ESCROW_INDEX,
+  );
+
+export async function createJob(
+  base: AnyProgram,
+  requester: PublicKey,
+  nonce: bigint,
+  priceLamports: number,
+  deadlineUnix: number,
+  model: string,
+): Promise<{ job: PublicKey; sig: string }> {
+  const sig = await (base.provider as anchor.AnchorProvider).sendAndConfirm(
+    new Transaction().add(
+      await createJobIx(base, requester, nonce, priceLamports, deadlineUnix, model),
+    ),
+  );
+  return { job: jobPda(requester, nonce), sig };
+}
+
+/** Delegate `Job` and `JobPrivate` to `validator` in one base-layer transaction. */
+export async function delegateJob(
+  base: AnyProgram,
+  requester: PublicKey,
+  nonce: bigint,
+  validator: PublicKey,
+): Promise<string> {
+  const tx = new Transaction();
+  for (const ix of await delegateJobIxs(base, requester, nonce, validator)) tx.add(ix);
   return (base.provider as anchor.AnchorProvider).sendAndConfirm(tx);
+}
+
+export type OpenJobPlan = {
+  job: PublicKey;
+  txs: Transaction[];
+  /** Packed byte size of each transaction, in order. */
+  sizes: number[];
+};
+
+/**
+ * Everything a message needs on the base layer, packed for one wallet approval:
+ * `create_job`, both delegate instructions, and — when `topUpLamports > 0` — the
+ * ephemeral-balance top-up that lets the eventual approval schedule its own
+ * payout.
+ *
+ * The result is normally a single transaction. If the four instructions ever
+ * exceed `TX_SIZE_LIMIT` the plan splits, in order; the caller must sign the
+ * whole plan in one `signAllTransactions` call so the split still costs one
+ * approval, and send the parts in sequence because `create_job` must land first.
+ */
+export async function buildOpenJobTxs(
+  base: AnyProgram,
+  requester: PublicKey,
+  nonce: bigint,
+  priceLamports: number,
+  deadlineUnix: number,
+  model: string,
+  validator: PublicKey,
+  topUpLamports = 0,
+): Promise<OpenJobPlan> {
+  const ixs: TransactionInstruction[] = [
+    await createJobIx(base, requester, nonce, priceLamports, deadlineUnix, model),
+    ...(await delegateJobIxs(base, requester, nonce, validator)),
+  ];
+  if (topUpLamports > 0) ixs.push(topUpActionEscrowIx(requester, topUpLamports));
+
+  const conn = base.provider.connection;
+  const { blockhash } = await conn.getLatestBlockhash("confirmed");
+  const txs = packInstructions(ixs, requester, blockhash);
+  return { job: jobPda(requester, nonce), txs, sizes: txs.map(packedSize) };
+}
+
+/**
+ * Build and send the base-layer half of a message.
+ *
+ * `AnchorProvider.sendAll` signs the whole plan with a single
+ * `signAllTransactions` call and then sends and confirms each transaction in
+ * turn, so a one-transaction plan is one wallet prompt and a split plan is still
+ * one wallet prompt.
+ */
+export async function openJob(
+  base: AnyProgram,
+  requester: PublicKey,
+  nonce: bigint,
+  priceLamports: number,
+  deadlineUnix: number,
+  model: string,
+  validator: PublicKey,
+  topUpLamports = 0,
+): Promise<{ job: PublicKey; sigs: string[]; sizes: number[] }> {
+  const plan = await buildOpenJobTxs(
+    base,
+    requester,
+    nonce,
+    priceLamports,
+    deadlineUnix,
+    model,
+    validator,
+    topUpLamports,
+  );
+  const sigs = await (base.provider as anchor.AnchorProvider).sendAll(
+    plan.txs.map((tx) => ({ tx })),
+  );
+  return { job: plan.job, sigs, sizes: plan.sizes };
 }
 
 // ---------------------------------------------------------------------------
@@ -163,15 +334,10 @@ export async function delegateJob(
  * on simulation as well as send, and Anchor does not forward the custom query
  * string on its simulate path.
  */
-async function erRpc(er: AnyProgram, builder: any): Promise<string> {
-  const provider = er.provider as anchor.AnchorProvider;
-  const conn = provider.connection;
-  const tx: Transaction = await builder.transaction();
-  tx.feePayer = provider.wallet.publicKey;
-  const bh = await conn.getLatestBlockhash("confirmed");
-  tx.recentBlockhash = bh.blockhash;
-  const signed = await provider.wallet.signTransaction(tx);
-  const sig = await conn.sendRawTransaction(signed.serialize(), { skipPreflight: true });
+type Blockhash = Awaited<ReturnType<Connection["getLatestBlockhash"]>>;
+
+/** Confirm one ER signature, surfacing the runtime error and the program logs. */
+async function erConfirm(conn: Connection, sig: string, bh: Blockhash): Promise<string> {
   const res = await conn.confirmTransaction({ signature: sig, ...bh }, "confirmed");
   if (res.value.err) {
     const failed = await conn.getTransaction(sig, {
@@ -187,6 +353,69 @@ async function erRpc(er: AnyProgram, builder: any): Promise<string> {
   return sig;
 }
 
+async function erRpc(er: AnyProgram, builder: any): Promise<string> {
+  const provider = er.provider as anchor.AnchorProvider;
+  const conn = provider.connection;
+  const tx: Transaction = await builder.transaction();
+  tx.feePayer = provider.wallet.publicKey;
+  const bh = await conn.getLatestBlockhash("confirmed");
+  tx.recentBlockhash = bh.blockhash;
+  const signed = await provider.wallet.signTransaction(tx);
+  const sig = await conn.sendRawTransaction(signed.serialize(), { skipPreflight: true });
+  return erConfirm(conn, sig, bh);
+}
+
+/** Which signing path a rollup sequence took. */
+export type ErSignMode = "batched" | "sequential";
+
+/**
+ * Run an ordered sequence of ER instructions for one wallet approval.
+ *
+ * Every transaction shares one blockhash and they are signed together with
+ * `signAllTransactions`, which Phantom and Solflare both implement, so a whole
+ * prompt costs a single prompt from the wallet. They are still **sent** one at a
+ * time and each is confirmed before the next: the sequence is a dependency
+ * chain, not a batch. The permission must exist before the first write, and
+ * `finalize_prompt` must follow every chunk.
+ *
+ * A wallet without `signAllTransactions` falls back to the original path, one
+ * sign-send-confirm per instruction, and reports `"sequential"` so the caller
+ * can say which path ran.
+ */
+async function erSendAll(
+  er: AnyProgram,
+  builders: any[],
+): Promise<{ sigs: string[]; mode: ErSignMode }> {
+  const provider = er.provider as anchor.AnchorProvider;
+  const conn = provider.connection;
+  // `provider.wallet` is typed as always having `signAllTransactions`, but the
+  // adapter behind it is whatever the user connected, so this is a real check.
+  const wallet = provider.wallet;
+
+  if (typeof wallet.signAllTransactions !== "function") {
+    const sigs: string[] = [];
+    for (const b of builders) sigs.push(await erRpc(er, b));
+    return { sigs, mode: "sequential" };
+  }
+
+  const bh = await conn.getLatestBlockhash("confirmed");
+  const txs: Transaction[] = [];
+  for (const b of builders) {
+    const tx: Transaction = await b.transaction();
+    tx.feePayer = wallet.publicKey;
+    tx.recentBlockhash = bh.blockhash;
+    txs.push(tx);
+  }
+
+  const signed = await wallet.signAllTransactions(txs);
+  const sigs: string[] = [];
+  for (const tx of signed) {
+    const sig = await conn.sendRawTransaction(tx.serialize(), { skipPreflight: true });
+    sigs.push(await erConfirm(conn, sig, bh));
+  }
+  return { sigs, mode: "batched" };
+}
+
 /** Accounts shared by `init_permissions` and the four terminal instructions. */
 const permAccounts = (job: PublicKey) => ({
   jobPermission: permissionPda(job),
@@ -197,11 +426,45 @@ const permAccounts = (job: PublicKey) => ({
 });
 
 /**
+ * Open the ER-local permissions, stream the prompt in, and seal it.
+ *
+ * The whole sequence is one wallet approval on a wallet that implements
+ * `signAllTransactions`; see `erSendAll` for the ordering guarantee and the
+ * fallback. The job and its private buffer must already be delegated and
+ * observed on a single ER.
+ *
+ * Callers must not log `prompt` or any of its chunks.
+ */
+export async function sealPrompt(
+  er: AnyProgram,
+  requester: PublicKey,
+  job: PublicKey,
+  prompt: Uint8Array,
+): Promise<{ sigs: string[]; mode: ErSignMode }> {
+  if (prompt.length === 0 || prompt.length > PROMPT_MAX) {
+    throw new Error(`prompt length must be 1..=${PROMPT_MAX}, got ${prompt.length}`);
+  }
+  const jp = jobPrivatePda(job);
+  const jpPermission = permissionPda(jp);
+  const priv = { requester, job, jobPrivate: jp, jobPrivatePermission: jpPermission };
+
+  return erSendAll(er, [
+    er.methods
+      .initPermissions()
+      .accounts({ requester, job, jobPrivate: jp, ...permAccounts(job) }),
+    ...chunk(prompt).map((c) =>
+      er.methods.writePrompt(c.offset, Buffer.from(c.data)).accounts(priv),
+    ),
+    er.methods.finalizePrompt(prompt.length).accounts(priv),
+  ]);
+}
+
+/**
  * Delegate both PDAs, wait for the router to place them on one ER, create the
  * ER-local permissions, then stream the prompt in and seal it.
  *
- * Every ER instruction goes through `erRpc`, which skips preflight and reports
- * the signature, runtime error and logs of a failed transaction.
+ * Kept as the one-call path for scripts. The app splits it so the base-layer
+ * half can be packed together with `create_job`; see `openJob` and `sealPrompt`.
  */
 export async function publishJob(
   p: Programs,
@@ -216,33 +479,10 @@ export async function publishJob(
   }
   const job = jobPda(requester, nonce);
   const jp = jobPrivatePda(job);
-  const jpPermission = permissionPda(jp);
 
   await delegateJob(p.base, requester, nonce, validator);
   const fqdn = await waitForDelegation(router, [job, jp]);
-
-  await erRpc(
-    p.er,
-    p.er.methods
-      .initPermissions()
-      .accounts({ requester, job, jobPrivate: jp, ...permAccounts(job) }),
-  );
-
-  for (const c of chunk(prompt)) {
-    await erRpc(
-      p.er,
-      p.er.methods
-        .writePrompt(c.offset, Buffer.from(c.data))
-        .accounts({ requester, job, jobPrivate: jp, jobPrivatePermission: jpPermission }),
-    );
-  }
-
-  await erRpc(
-    p.er,
-    p.er.methods
-      .finalizePrompt(prompt.length)
-      .accounts({ requester, job, jobPrivate: jp, jobPrivatePermission: jpPermission }),
-  );
+  await sealPrompt(p.er, requester, job, prompt);
 
   return { job, fqdn };
 }
@@ -440,17 +680,9 @@ export async function closeJob(
 export async function topUpActionEscrow(
   base: Connection,
   payer: Keypair,
-  lamports = 0.01 * LAMPORTS_PER_SOL,
+  lamports = ACTION_TOP_UP_LAMPORTS,
 ): Promise<string> {
-  const escrow = escrowPdaFromEscrowAuthority(payer.publicKey, ACTION_ESCROW_INDEX);
-  const ix = createTopUpEscrowInstruction(
-    escrow,
-    payer.publicKey,
-    payer.publicKey,
-    lamports,
-    ACTION_ESCROW_INDEX,
-  );
-  const tx = new Transaction().add(ix);
+  const tx = new Transaction().add(topUpActionEscrowIx(payer.publicKey, lamports));
   tx.feePayer = payer.publicKey;
   const sig = await base.sendTransaction(tx, [payer]);
   await base.confirmTransaction(sig, "confirmed");

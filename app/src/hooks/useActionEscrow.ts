@@ -1,23 +1,25 @@
 import { useCallback, useEffect, useState } from "react";
-import { LAMPORTS_PER_SOL, Transaction } from "@solana/web3.js";
+import { Transaction } from "@solana/web3.js";
 import type { Connection } from "@solana/web3.js";
 import type { WalletContextState } from "@solana/wallet-adapter-react";
+import { escrowPdaFromEscrowAuthority } from "@magicblock-labs/ephemeral-rollups-sdk";
 import {
-  createTopUpEscrowInstruction,
-  escrowPdaFromEscrowAuthority,
-} from "@magicblock-labs/ephemeral-rollups-sdk";
-import { ACTION_ESCROW_INDEX } from "@inference-market/client";
+  ACTION_ESCROW_INDEX,
+  ACTION_TOP_UP_LAMPORTS,
+  topUpActionEscrowIx,
+} from "@inference-market/client";
 
-export const TOP_UP_LAMPORTS = 0.01 * LAMPORTS_PER_SOL;
+export const TOP_UP_LAMPORTS = ACTION_TOP_UP_LAMPORTS;
 
 /**
  * The delegation-program ephemeral balance that pays for a scheduled
  * `settle_action`. Without it, approve/reject must run with
  * `scheduleAction = false` and be settled afterwards with `settleDirect`.
  *
- * The client's `topUpActionEscrow` takes a `Keypair`; a browser wallet has no
- * secret key, so the same instruction is built here and sent through the
- * adapter.
+ * The first message a wallet sends folds this top-up into its own base-layer
+ * transaction (see `useChat`), so in the normal flow the escrow is already
+ * funded by the time there is anything to approve. This hook stays as the
+ * explicit control for topping it up again, and for reading the balance.
  */
 export function useActionEscrow(connection: Connection, wallet: WalletContextState) {
   const [lamports, setLamports] = useState<number | null>(null);
@@ -42,10 +44,7 @@ export function useActionEscrow(connection: Connection, wallet: WalletContextSta
     if (!owner) throw new Error("Connect a wallet first.");
     setBusy(true);
     try {
-      const pda = escrowPdaFromEscrowAuthority(owner, ACTION_ESCROW_INDEX);
-      const tx = new Transaction().add(
-        createTopUpEscrowInstruction(pda, owner, owner, TOP_UP_LAMPORTS, ACTION_ESCROW_INDEX),
-      );
+      const tx = new Transaction().add(topUpActionEscrowIx(owner, TOP_UP_LAMPORTS));
       const sig = await wallet.sendTransaction(tx, connection);
       const bh = await connection.getLatestBlockhash("confirmed");
       await connection.confirmTransaction({ signature: sig, ...bh }, "confirmed");
@@ -56,12 +55,23 @@ export function useActionEscrow(connection: Connection, wallet: WalletContextSta
     }
   }, [connection, owner, refresh, wallet]);
 
+  /**
+   * Credit a top-up that has already confirmed, without waiting for the read
+   * back. `useChat` folds the top-up into the first message's own transaction
+   * and the approval that follows must see a funded escrow, or it would decline
+   * to schedule its payout and cost the user an extra signature to settle.
+   */
+  const markFunded = useCallback((added: number) => {
+    setLamports((l) => (l ?? 0) + added);
+  }, []);
+
   return {
     lamports,
     /** A scheduled Magic Action is only affordable once this escrow holds something. */
     funded: lamports !== null && lamports > 0,
     busy,
     fund,
+    markFunded,
     refresh,
   };
 }

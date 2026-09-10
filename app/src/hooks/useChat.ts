@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PublicKey } from "@solana/web3.js";
 import {
-  createJob,
+  ACTION_TOP_UP_LAMPORTS,
   escrowPda,
   finishJob,
   jobPrivatePda,
-  permissionPda,
-  publishJob,
+  openJob,
   readPrivate,
+  sealPrompt,
   settleDirect,
+  waitForDelegation,
   waitForUndelegation,
 } from "@inference-market/client";
+import { useActionEscrow } from "./useActionEscrow";
 import type { Market } from "./useMarket";
 import type { ChatMsg, Conversation, Store } from "../lib/chat";
 import {
@@ -45,11 +47,18 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /**
  * The chat, and the on-chain job behind every turn.
  *
- * One user message becomes one job: `createJob` on devnet, then `publishJob`,
- * which delegates the pair to the TEE validator, opens the rollup permissions
- * and streams the prompt in. The pending assistant message then polls the
+ * One user message becomes one job and costs two wallet approvals. `openJob`
+ * packs `create_job`, both delegate instructions and — on the first message a
+ * wallet sends — the action-escrow top-up into a single devnet transaction.
+ * `sealPrompt` then signs the whole rollup sequence at once: the permissions,
+ * every prompt chunk and the seal. The pending assistant message then polls the
  * rollup copy of the job until a provider claims it, answers it, and the output
  * can be read back through `readPrivate`.
+ *
+ * Because that top-up rides along, the action escrow is funded from the first
+ * message onward, so approving schedules its own payout and there is no third
+ * signature to settle. The manual settle path below stays for the cases where
+ * that is not true.
  *
  * Settlement is a two-phase machine on purpose. `finishJob` is the only step
  * that can be retried safely as a whole; once it lands, the decision is on
@@ -87,10 +96,18 @@ export function useChat(market: Market) {
   const [busy, setBusy] = useState(false);
   /** Message ids whose settle half is running in this session, right now. */
   const [settling, setSettling] = useState<Record<string, true>>({});
-  const publishWatcher = useRef(0);
   const sending = useRef(false);
   const storeRef = useRef(store);
   storeRef.current = store;
+
+  /**
+   * The ephemeral balance a scheduled `settle_action` is charged to. Held in a
+   * ref so `send` and `decide` read the live value without changing identity on
+   * every balance refresh.
+   */
+  const actionEscrow = useActionEscrow(connection, wallet);
+  const escrowRef = useRef(actionEscrow);
+  escrowRef.current = actionEscrow;
 
   useEffect(() => {
     saveStore(loaded.owner, loaded.store);
@@ -162,11 +179,6 @@ export function useChat(market: Market) {
 
   // ---- sending ------------------------------------------------------------
 
-  const stopPublishWatcher = useCallback(() => {
-    if (publishWatcher.current) window.clearInterval(publishWatcher.current);
-    publishWatcher.current = 0;
-  }, []);
-
   const send = useCallback(
     async (text: string) => {
       if (!base || !er || !validator || !owner || !text.trim()) return;
@@ -199,18 +211,13 @@ export function useChat(market: Market) {
       }));
 
       setBusy(true);
-      const clock = [performance.now()];
-      const closeStep = (i: number) => {
-        const now = performance.now();
-        const started = clock[i] ?? now;
-        const ms = now - started;
-        clock[i + 1] = now;
-        // Steps 2 and 3 are rollup calls; step 0 is a base-layer transaction and
-        // step 1 is the router observing delegation, so neither is rollup latency.
-        if (i >= 2) recordStep(ms);
+      /** Mark one of the two publish steps done, with its measured duration. */
+      const markStep = (i: number, ms: number, name?: string) => {
         patchMsg(convId, botId, (m) => ({
           ...m,
-          steps: (m.steps ?? freshSteps()).map((s, k) => (k === i ? { ...s, done: true, ms } : s)),
+          steps: (m.steps ?? freshSteps()).map((s, k) =>
+            k === i ? { ...s, done: true, ms, name: name ?? s.name } : s,
+          ),
         }));
       };
 
@@ -220,76 +227,53 @@ export function useChat(market: Market) {
         const nonce = nextNonce();
         const deadlineUnix = Math.floor(Date.now() / 1000) + conv.minutes * 60;
         const prompt = buildPrompt(history, text);
+        // Fold the action-escrow top-up in only while the escrow is empty, so
+        // the very first message pays for every later approval to settle itself.
+        const topUp = escrowRef.current.funded ? 0 : ACTION_TOP_UP_LAMPORTS;
 
-        const { job } = await createJob(
+        // Step one, one signature: create the job, delegate both PDAs and, the
+        // first time, fund the action escrow.
+        const t0 = performance.now();
+        const { job } = await openJob(
           base,
           owner,
           nonce,
           conv.priceLamports,
           deadlineUnix,
           conv.model,
+          validator,
+          topUp,
         );
-        closeStep(0);
+        markStep(0, performance.now() - t0);
         stage = 1;
 
         patchMsg(convId, botId, (m) => ({ ...m, job: job.toBase58(), deadlineUnix }));
+        if (topUp > 0) {
+          escrowRef.current.markFunded(topUp);
+          void escrowRef.current.refresh().catch(() => {});
+        }
 
-        // Watch the two phases inside `publishJob` that can be observed. The
-        // handle lives in a ref so unmounting clears it.
-        let seenDelegated = false;
-        stopPublishWatcher();
-        publishWatcher.current = window.setInterval(() => {
-          void (async () => {
-            try {
-              if (!seenDelegated) {
-                const status: any = await router.getDelegationStatus(job);
-                if (status?.isDelegated) {
-                  seenDelegated = true;
-                  closeStep(1);
-                  stage = 2;
-                }
-                return;
-              }
-              const perm = await er.provider.connection.getAccountInfo(
-                permissionPda(jobPrivatePda(job)),
-                "confirmed",
-              );
-              if (perm) {
-                closeStep(2);
-                stage = 3;
-                stopPublishWatcher();
-              }
-            } catch {
-              /* transient RPC hiccups must not fail the publish */
-            }
-          })();
-        }, 700);
-
-        await publishJob(
-          { base, er },
-          router,
+        // Step two, one signature: the whole rollup sequence. The router wait in
+        // front of it is base-layer propagation, not rollup latency, so only the
+        // sequence itself is recorded as a step time.
+        const t1 = performance.now();
+        await waitForDelegation(router, [job, jobPrivatePda(job)]);
+        const tSeal = performance.now();
+        const { mode } = await sealPrompt(
+          er,
           owner,
-          nonce,
-          validator,
+          job,
           new TextEncoder().encode(prompt.text),
         );
-        stopPublishWatcher();
+        recordStep(performance.now() - tSeal);
+        markStep(
+          1,
+          performance.now() - t1,
+          mode === "sequential" ? "sealing · per-step signing" : undefined,
+        );
 
-        // Close whatever the watcher did not observe before the call returned.
-        patchMsg(convId, botId, (m) => {
-          const now = performance.now();
-          return {
-            ...m,
-            state: "open",
-            steps: (m.steps ?? freshSteps()).map((s, k) => ({
-              ...s,
-              done: true,
-              ms: s.ms ?? now - (clock[k] ?? clock[0]),
-            })),
-          };
-        });
+        patchMsg(convId, botId, (m) => ({ ...m, state: "open" }));
       } catch (e) {
-        stopPublishWatcher();
         patchMsg(convId, botId, (m) => ({
           ...m,
           state: "failed",
@@ -303,7 +287,7 @@ export function useChat(market: Market) {
         setBusy(false);
       }
     },
-    [active, base, er, owner, patchConv, patchMsg, router, startConversation, stopPublishWatcher, validator],
+    [active, base, er, owner, patchConv, patchMsg, router, startConversation, validator],
   );
 
   // ---- settlement ---------------------------------------------------------
@@ -416,9 +400,14 @@ export function useChat(market: Market) {
   /**
    * Phase one: send the decision. `decisionAttempted` is set before the call and
    * never cleared, so auto-approve cannot fire again whatever happens next.
+   *
+   * A funded action escrow — the normal case, since the first message tops it up
+   * — schedules the payout inside the same commit, so `settlePhase` finishes by
+   * observation and never asks for a second signature.
    */
   const decide = useCallback(
-    async (convId: string, msgId: string, kind: "approve" | "reject", funded: boolean) => {
+    async (convId: string, msgId: string, kind: "approve" | "reject") => {
+      const funded = escrowRef.current.funded;
       const msg = storeRef.current.convs
         .find((c) => c.id === convId)
         ?.messages.find((m) => m.id === msgId);
@@ -539,8 +528,6 @@ export function useChat(market: Market) {
       window.clearInterval(id);
     };
   }, [er, active, pollKeys, patchMsg]);
-
-  useEffect(() => stopPublishWatcher, [stopPublishWatcher]);
 
   return {
     convs: store.convs,

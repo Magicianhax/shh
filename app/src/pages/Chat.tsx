@@ -6,7 +6,6 @@ import { ModelPicker } from "../components/ModelPicker";
 import { PillMenu } from "../components/PillMenu";
 import { WalletChip } from "../components/WalletChip";
 import { CloseIcon, MenuIcon, Mark, PlusIcon, SendIcon } from "../components/icons";
-import { useActionEscrow } from "../hooks/useActionEscrow";
 import { useChat } from "../hooks/useChat";
 import type { Market } from "../hooks/useMarket";
 import { useNow } from "../hooks/useNow";
@@ -57,7 +56,6 @@ export function Chat({ market }: { market: Market }) {
   const tee = useTee();
   const owner = market.wallet.publicKey ?? null;
   const { lamports, refresh: refreshBalance } = useBalance(market.connection, owner);
-  const actionEscrow = useActionEscrow(market.connection, market.wallet);
 
   const [draft, setDraft] = useState("");
   const [railOpen, setRailOpen] = useState(false);
@@ -120,9 +118,9 @@ export function Chat({ market }: { market: Market }) {
   const decide = useCallback(
     (msgId: string, kind: "approve" | "reject") => {
       if (!active) return;
-      void chat.decide(active.id, msgId, kind, actionEscrow.funded);
+      void chat.decide(active.id, msgId, kind);
     },
-    [active, actionEscrow.funded, chat],
+    [active, chat],
   );
 
   /**
@@ -142,11 +140,11 @@ export function Chat({ market }: { market: Market }) {
   useEffect(() => {
     if (!autoOn || !convId || !autoTargetId) return;
     const id = window.setTimeout(
-      () => void decideRef.current(convId, autoTargetId, "approve", actionEscrow.funded),
+      () => void decideRef.current(convId, autoTargetId, "approve"),
       600,
     );
     return () => window.clearTimeout(id);
-  }, [autoOn, convId, autoTargetId, actionEscrow.funded]);
+  }, [autoOn, convId, autoTargetId]);
 
   const price = active?.priceLamports ?? DEFAULT_PRICE_LAMPORTS;
   const minutes = active?.minutes ?? 30;
