@@ -59,6 +59,7 @@ export function useMarket(): Market {
 
   // `wallet` is a fresh object every render; hold it in a ref so the TEE effect
   // depends only on the connected key, not on render identity.
+  const lastOwner = useRef<string | null>(null);
   const walletRef = useRef(wallet);
   walletRef.current = wallet;
 
@@ -76,11 +77,16 @@ export function useMarket(): Market {
 
   useEffect(() => {
     if (!owner || !canSignMsg) {
+      // Disconnecting is a deliberate signal, so the bearer token goes with it
+      // rather than waiting for the tab to close.
+      if (lastOwner.current) clearSession(lastOwner.current);
+      lastOwner.current = null;
       setEr(null);
       setValidator(null);
       setTeeError(null);
       return;
     }
+    lastOwner.current = owner;
 
     let cancelled = false;
     let renewTimer = 0;

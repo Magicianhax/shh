@@ -6,10 +6,12 @@ import { TEE_URL } from "@inference-market/client";
  * scoped to one public key, so it is stored under a key that includes both the
  * endpoint and the owner; changing either misses the cache and re-signs.
  *
- * Nothing secret to the chain lives here — the token only grants reads of the
- * accounts this wallet is already a permission member of — but it is still a
- * bearer credential, so it never leaves the browser and is dropped on
- * disconnect.
+ * It is a bearer credential: whoever holds it can read this wallet’s prompts
+ * and answers in the rollup. So it lives in `sessionStorage`, which survives a
+ * reload but dies with the tab, is scoped to one endpoint and one key, and is
+ * dropped on an explicit disconnect. The rollup endpoint authenticates on a
+ * query-string token and the SDK parses it back out of the URL, so a header is
+ * not an option; the mitigation is to keep the value short-lived and unlogged.
  */
 type Session = { token: string; expiresAt: number };
 
@@ -37,7 +39,7 @@ export function toEpochMs(expiresAt: number): number {
 
 export function loadSession(owner: string): Session | null {
   try {
-    const raw = window.localStorage.getItem(keyFor(owner));
+    const raw = window.sessionStorage.getItem(keyFor(owner));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<Session>;
     if (typeof parsed.token !== "string" || !parsed.token) return null;
@@ -51,7 +53,7 @@ export function loadSession(owner: string): Session | null {
 
 export function saveSession(owner: string, session: Session): void {
   try {
-    window.localStorage.setItem(
+    window.sessionStorage.setItem(
       keyFor(owner),
       JSON.stringify({ token: session.token, expiresAt: toEpochMs(session.expiresAt) }),
     );
@@ -62,7 +64,7 @@ export function saveSession(owner: string, session: Session): void {
 
 export function clearSession(owner: string): void {
   try {
-    window.localStorage.removeItem(keyFor(owner));
+    window.sessionStorage.removeItem(keyFor(owner));
   } catch {
     /* nothing to do */
   }
