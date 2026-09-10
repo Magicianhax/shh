@@ -250,6 +250,40 @@ export function Landing() {
           </div>
         </div>
 
+        <section className="split trust-sec">
+          <div className="split-head">
+            <div className="eyebrow">What you are trusting</div>
+            <h2>Escrow, not goodwill.</h2>
+            <p className="lede-sm">
+              The price is locked before a provider sees the job and moves only when the
+              requester decides. Everything below is what the program enforces, and what it
+              deliberately does not.
+            </p>
+          </div>
+          <div className="trust-grid">
+            <div className="trust-col">
+              <div className="trust-col-head">Enforced on chain</div>
+              <ul>
+                <li>The price leaves the requester at posting and is held by the program, not by either party.</li>
+                <li>A provider can read the prompt only after claiming, and only that provider and the requester ever can.</li>
+                <li>Approval pays the provider; rejection refunds the requester. Neither can be replayed.</li>
+                <li>The prompt and the answer are wiped before the accounts return to Solana; only their hashes remain.</li>
+                <li>An hour past the deadline anyone may approve, so an absent requester cannot strand a provider.</li>
+              </ul>
+            </div>
+            <div className="trust-col trust-col-gap">
+              <div className="trust-col-head">Still trust, not proof</div>
+              <ul>
+                <li>Nothing attests which model actually ran. The enclave protects the prompt, not the provider’s honesty.</li>
+                <li>A requester can reject a good answer and keep both it and the refund. The only cost is the provider’s public rejected count.</li>
+                <li>No arbitration, no staking, no slashing.</li>
+                <li>Reputation is two counters. It is not a rating and it cannot be appealed.</li>
+                <li>Devnet only. Nothing here has been audited.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
         <div className="providers">
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             <div className="eyebrow">For providers</div>

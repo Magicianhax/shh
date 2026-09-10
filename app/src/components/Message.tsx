@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { AUTO_APPROVE_SECS } from "@inference-market/client";
 import { CheckIcon, LockIcon } from "./icons";
 import type { ChatMsg } from "../lib/chat";
@@ -31,6 +32,7 @@ function stepLine(msg: ChatMsg): string {
 }
 
 export function Message({ msg, now, busy, settleRunning, onDecide, onRetrySettle }: Props) {
+  const [trust, setTrust] = useState(false);
   if (msg.role === "user") {
     return (
       <div className="msg-user">
@@ -125,6 +127,39 @@ export function Message({ msg, now, busy, settleRunning, onDecide, onRetrySettle
                 : "answered"}
               {openInMin !== null ? ` · open to anyone in ${openInMin} min` : ""}
             </span>
+            <button
+              type="button"
+              className="linky"
+              aria-expanded={trust}
+              aria-controls={`trust-${msg.id}`}
+              onClick={() => setTrust((v) => !v)}
+            >
+              How does paying work?
+            </button>
+          </div>
+        ) : null}
+
+        {msg.state === "submitted" && trust ? (
+          <div id={`trust-${msg.id}`} className="trust">
+            <p>
+              <b>You already paid.</b> The price left your wallet when you sent the
+              message and has sat in an escrow account owned by the program ever since.
+              The provider only spent a model call because they could see it was funded.
+            </p>
+            <p>
+              <b>Approve</b> releases that escrow to the provider. <b>Reject</b> sends it
+              back to you. Nothing further leaves your wallet either way.
+            </p>
+            <p>
+              An hour after the deadline anyone can approve, so a provider is not stranded
+              if you never come back.
+            </p>
+            <p className="trust-gap">
+              <b>What this does not do yet.</b> Nothing stops a requester reading a good
+              answer and rejecting anyway, keeping both the answer and the refund. The
+              only consequence is the provider’s public rejected count. There is no
+              arbitration and no staking in this version.
+            </p>
           </div>
         ) : null}
 

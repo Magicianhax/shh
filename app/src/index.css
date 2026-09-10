@@ -3072,3 +3072,125 @@ textarea:focus {
   white-space: nowrap;
   border: 0;
 }
+
+/* --- trust explainers ---------------------------------------------------- */
+
+/* A quiet inline link inside a row of buttons; it must not read as a third
+   action, so no border, no fill, just the link colour. */
+.linky {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--acc-link);
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.linky:hover {
+  color: var(--acc-deep);
+}
+
+.trust {
+  max-width: 620px;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--s4);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+.trust p {
+  margin: 0 0 9px;
+}
+.trust p:last-child {
+  margin-bottom: 0;
+}
+.trust b {
+  color: var(--ink);
+  font-weight: 600;
+}
+/* The honest-limits paragraph is set apart, not hidden. */
+.trust-gap {
+  padding-top: 9px;
+  border-top: 1px solid var(--hair);
+}
+
+.trust-sec {
+  padding-top: 120px;
+}
+.trust-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.trust-col {
+  padding: 22px 24px;
+  border-radius: 20px;
+  background: var(--s1);
+  border: 1px solid var(--hair);
+}
+.trust-col-gap {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: oklch(92% 0.006 80);
+}
+.trust-col-head {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--acc-deep);
+  margin-bottom: 14px;
+}
+.trust-col-gap .trust-col-head {
+  color: oklch(70% 0.06 175);
+}
+.trust-col ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.trust-col li {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  padding-left: 16px;
+  position: relative;
+}
+.trust-col-gap li {
+  color: oklch(82% 0.008 80);
+}
+.trust-col li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--acc);
+}
+.trust-col-gap li::before {
+  background: oklch(70% 0.06 175);
+}
+
+.lede-sm {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+@media (max-width: 900px) {
+  .trust-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .trust-sec {
+    padding-top: 72px;
+  }
+}
