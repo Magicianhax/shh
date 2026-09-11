@@ -1289,6 +1289,20 @@ textarea:focus {
   min-height: 100dvh;
 }
 
+/*
+ * The chat locks to the viewport so its own message list scrolls instead of the
+ * page. The rule above sets a minimum, not a height, so a flex child asking for
+ * "flex: 1; min-height: 0" has nothing to resolve against: the list grew to fit
+ * its messages and the wheel had nothing left to move. Only this route wants
+ * the lock; the landing and the tables scroll the page normally.
+ */
+.shell-locked {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .chat {
   display: grid;
   grid-template-columns: var(--rail) minmax(0, 1fr);
@@ -1621,11 +1635,10 @@ textarea:focus {
   flex: 1;
 }
 
+/* The answer inside is rendered Markdown, so it brings its own block layout;
+   `white-space: pre-wrap` here would double every blank line between blocks. */
 .msg-text {
-  font-size: 15px;
-  line-height: 1.65;
-  white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .msg-meta {
@@ -3781,4 +3794,152 @@ input {
   .setup-actions .btn {
     flex: 1;
   }
+}
+
+/* --- rendered answers ---------------------------------------------------- */
+
+/*
+ * Models reply in Markdown, so the thread has to read as prose rather than as
+ * source. The scale here is deliberately shallow: an answer is a passage inside
+ * a conversation, not a document, so its headings sit just above body weight
+ * instead of competing with the page.
+ */
+.md {
+  font-size: 15px;
+  line-height: 1.62;
+  color: var(--ink-2);
+}
+
+.md > :first-child {
+  margin-top: 0;
+}
+
+.md > :last-child {
+  margin-bottom: 0;
+}
+
+.md p {
+  margin: 0 0 12px;
+}
+
+.md-h1,
+.md-h2,
+.md-h3 {
+  margin: 22px 0 8px;
+  color: var(--ink);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+
+.md-h1 {
+  font-size: 17px;
+}
+
+.md-h2 {
+  font-size: 15.5px;
+}
+
+.md-h3 {
+  font-size: 14.5px;
+  color: var(--ink-2);
+}
+
+.md ul,
+.md ol {
+  margin: 0 0 12px;
+  padding-left: 22px;
+}
+
+.md li {
+  margin: 4px 0;
+}
+
+.md li::marker {
+  color: var(--faint);
+}
+
+.md li > ul,
+.md li > ol {
+  margin: 4px 0 0;
+}
+
+.md strong {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.md a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Inline code sits inside a sentence, so it takes a tint rather than a box
+   heavy enough to break the line's rhythm. */
+.md :not(pre) > code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--s3);
+  font-family: var(--mono);
+  font-size: 0.88em;
+  color: var(--ink);
+}
+
+.md pre {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--band);
+  border: 1px solid var(--hair);
+  overflow-x: auto;
+}
+
+.md pre code {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+
+.md blockquote {
+  margin: 0 0 12px;
+  padding-left: 14px;
+  border-left: 1px solid var(--hair-4);
+  color: var(--muted);
+}
+
+.md hr {
+  margin: 18px 0;
+  border: 0;
+  border-top: 1px solid var(--hair);
+}
+
+.md-table {
+  margin: 0 0 14px;
+  overflow-x: auto;
+}
+
+.md-table table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.md-table th,
+.md-table td {
+  padding: 7px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--hair);
+}
+
+.md-table th {
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.md img {
+  max-width: 100%;
+  border-radius: 10px;
 }

@@ -42,7 +42,7 @@ export default function App() {
   // Above every route, including the landing page: it is advice about the
   // visitor's wallet, so it belongs outside any one page's chrome.
   return (
-    <div className="shell">
+    <div className={route === "/chat" ? "shell shell-locked" : "shell"}>
       <WalletTip />
       {page}
     </div>

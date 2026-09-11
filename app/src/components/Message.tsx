@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AUTO_APPROVE_SECS } from "@inference-market/client";
+import { Answer } from "./Answer";
 import { CheckIcon, LockIcon } from "./icons";
 import type { ChatMsg } from "../lib/chat";
 import { isEmptyAnswer } from "../lib/chat";
@@ -78,7 +79,11 @@ export function Message({
       </span>
 
       <div className="msg-body">
-        {msg.text ? <div className="msg-text">{msg.text}</div> : null}
+        {msg.text ? (
+          <div className="msg-text">
+            <Answer text={msg.text} />
+          </div>
+        ) : null}
 
         {isEmptyAnswer(msg) ? (
           <p className="steps-line">the provider sealed an empty answer</p>
