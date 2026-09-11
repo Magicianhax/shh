@@ -368,14 +368,6 @@ button {
   font-family: var(--mono);
 }
 
-.eyebrow {
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--acc-deep);
-}
-
 .cap {
   font-size: 12px;
   font-weight: 600;
@@ -704,12 +696,16 @@ textarea:focus {
   white-space: nowrap;
 }
 
+/*
+ * Errors are prose, not output. Monospace here read as a stack trace leaking
+ * through the interface; the product voice is the sans face, and mono stays
+ * for the things that really are data: signatures, hashes, addresses.
+ */
 .notice {
-  font-family: var(--mono);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
   color: var(--bad);
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 /* --- landing ------------------------------------------------------------- */
@@ -3573,4 +3569,72 @@ textarea:focus {
     font-size: 12px;
     text-align: left;
   }
+}
+
+/* --- browser surfaces ---------------------------------------------------- */
+
+/*
+ * The parts of the page nobody draws. A default blue selection, a black caret
+ * and a grey system scrollbar all belong to no design system, and on a warm
+ * stone-and-teal palette they are the loudest thing on screen once you notice
+ * them. Both themes already carry tokens for this; they just were not used.
+ */
+::selection {
+  background: var(--acc-soft);
+  color: var(--ink);
+}
+
+/* The caret inherits `color`, which on muted or placeholder text is too faint
+   to find. The composer is the one control that matters most here. */
+textarea,
+input {
+  caret-color: var(--acc);
+}
+
+/*
+ * Firefox takes the two-colour form; WebKit needs the parts. Both are sized to
+ * sit inside the rounded panels they scroll rather than against the window.
+ */
+* {
+  scrollbar-color: var(--hair-4) transparent;
+  scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--hair-4);
+  border: 3px solid transparent;
+  border-radius: 8px;
+  /* Padding-box keeps the transparent border as inset, so the thumb reads as a
+     slim capsule floating in the gutter instead of filling it. */
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--faint);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/*
+ * Figures that change in place — a balance ticking, a latency readout, a byte
+ * count — must not reflow their neighbours as digits swap width.
+ */
+.msg-meta,
+.steps-line,
+.wallet-chip,
+.rail-foot,
+.composer-bar {
+  font-variant-numeric: tabular-nums;
 }

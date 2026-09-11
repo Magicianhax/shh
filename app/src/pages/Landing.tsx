@@ -58,8 +58,7 @@ export function Landing() {
 
         <div className="hero">
           <div className="hero-col">
-            <div className="eyebrow rise d1">Private inference · settled on Solana</div>
-            <h1 className="rise d2" style={{ margin: 0 }}>
+            <h1 className="rise d1" style={{ margin: 0 }}>
               Ask anything.
               <br />
               Only the provider
@@ -179,7 +178,6 @@ export function Landing() {
 
         <div className="split">
           <div className="split-head">
-            <div className="eyebrow">How it works</div>
             <h2>Four steps, one of them yours.</h2>
           </div>
           <div className="steps4">
@@ -195,7 +193,6 @@ export function Landing() {
 
         <div className="split">
           <div className="split-head">
-            <div className="eyebrow">What stays private</div>
             <h2>Public ledger, private words.</h2>
             <p style={{ fontSize: 15, lineHeight: 1.55, color: "var(--ink-3)" }}>
               Everything money-related is verifiable on Solana. Everything language-related never
@@ -254,7 +251,6 @@ export function Landing() {
 
         <section className="split trust-sec">
           <div className="split-head">
-            <div className="eyebrow">What you are trusting</div>
             <h2>Escrow, not goodwill.</h2>
             <p className="lede-sm">
               The price is locked before a provider sees the job and moves only when the
@@ -288,7 +284,6 @@ export function Landing() {
 
         <div className="providers">
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            <div className="eyebrow">For providers</div>
             <h2>Bring a model. Get paid on approval.</h2>
             <p
               style={{

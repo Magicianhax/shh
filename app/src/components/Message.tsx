@@ -172,21 +172,7 @@ export function Message({
           </div>
         ) : null}
 
-        {msg.state === "decision_failed" ? (
-          <>
-            <p className="notice">{msg.error}</p>
-            <div className="msg-actions">
-              <button
-                type="button"
-                className="btn"
-                disabled={busy}
-                onClick={() => onDecide(msg.decision ?? "approve")}
-              >
-                Try again
-              </button>
-            </div>
-          </>
-        ) : null}
+        {msg.state === "decision_failed" ? <p className="notice">{msg.error}</p> : null}
 
         {msg.state === "settled" || msg.state === "rejected" ? (
           <div className="msg-meta">
@@ -206,17 +192,32 @@ export function Message({
 
         {msg.settleError ? <p className="notice">{msg.settleError}</p> : null}
 
-        {/* Available for the whole of "settling", not only after a failure. */}
-        {canRetrySettle ? (
+        {/*
+          One row, so the two recoveries a stuck turn can offer sit side by side
+          instead of stacking as two lone buttons. Re-sending the decision is
+          the primary move when the decision itself never landed; once it has,
+          settling is all that remains.
+        */}
+        {canRetrySettle || msg.state === "decision_failed" ? (
           <div className="msg-actions">
-            <button
-              type="button"
-              className="btn"
-              disabled={settleRunning}
-              onClick={onRetrySettle}
-            >
-              {settleRunning ? "Settling…" : "Settle now"}
-            </button>
+            {msg.state === "decision_failed" ? (
+              <button
+                type="button"
+                className="btn btn-ink"
+                disabled={busy}
+                onClick={() => onDecide(msg.decision ?? "approve")}
+              >
+                Try again
+              </button>
+            ) : null}
+            {/* Hidden while the settle is actually running: the status line
+                above already says "settling…", and a disabled button repeating
+                the word is noise rather than feedback. */}
+            {canRetrySettle && !settleRunning ? (
+              <button type="button" className="btn" onClick={onRetrySettle}>
+                Settle now
+              </button>
+            ) : null}
           </div>
         ) : null}
 
