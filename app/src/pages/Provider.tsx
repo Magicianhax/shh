@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { MODEL_LABEL_LEN, providerPda, registerProvider } from "@inference-market/client";
 import { NetworkPanel } from "../components/NetworkPanel";
+import { ProviderSetup } from "../components/ProviderSetup";
 import { Pipeline, StateWord } from "../components/Pipeline";
 import { useJobs } from "../hooks/useJobs";
 import type { Market } from "../hooks/useMarket";
@@ -120,9 +121,9 @@ export function Provider({ market }: { market: Market }) {
           </h2>
         </div>
 
-        <NetworkPanel stats={network} rollupReady={Boolean(er)} owner={owner} />
+        <ProviderSetup owner={null} registered={false} claimed={null} />
 
-        <p className="empty">connect the wallet your worker signs with</p>
+        <NetworkPanel stats={network} rollupReady={Boolean(er)} owner={owner} />
       </div>
     );
   }
@@ -136,6 +137,32 @@ export function Provider({ market }: { market: Market }) {
           get paid on approval.
         </h2>
       </div>
+
+      <ProviderSetup
+        owner={owner.toBase58()}
+        registered={Boolean(account)}
+        claimed={jobs === null ? null : jobs.length}
+      />
+
+      {!account ? (
+        <form className="register" onSubmit={register} style={{ marginBottom: 32 }}>
+          <label className="field" style={{ flex: 1 }}>
+            <span className="sr">Model label</span>
+            <input
+              value={model}
+              maxLength={MODEL_LABEL_LEN}
+              disabled={busy || !base}
+              placeholder="claude"
+              onChange={(e) => setModel(e.target.value)}
+            />
+            <span>label</span>
+          </label>
+          <button type="submit" className="btn btn-ink" disabled={busy || !base || !model.trim()}>
+            {busy ? <i className="spin" /> : null}
+            Register provider
+          </button>
+        </form>
+      ) : null}
 
       <NetworkPanel stats={network} rollupReady={Boolean(er)} owner={owner} />
 
@@ -169,25 +196,6 @@ export function Provider({ market }: { market: Market }) {
         </div>
       </div>
 
-      {!account ? (
-        <form className="register" onSubmit={register} style={{ marginBottom: 32 }}>
-          <label className="field" style={{ flex: 1 }}>
-            <span className="sr">Model label</span>
-            <input
-              value={model}
-              maxLength={MODEL_LABEL_LEN}
-              disabled={busy || !base}
-              placeholder="claude"
-              onChange={(e) => setModel(e.target.value)}
-            />
-            <span>label</span>
-          </label>
-          <button type="submit" className="btn btn-ink" disabled={busy || !base || !model.trim()}>
-            {busy ? <i className="spin" /> : null}
-            Register provider
-          </button>
-        </form>
-      ) : null}
 
       {error ? <p className="notice" style={{ marginBottom: 24 }}>{error}</p> : null}
 

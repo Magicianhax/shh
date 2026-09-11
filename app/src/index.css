@@ -3638,3 +3638,147 @@ input {
 .composer-bar {
   font-variant-numeric: tabular-nums;
 }
+
+/* --- provider setup ------------------------------------------------------ */
+
+/*
+ * The first thing on the provider page, because registering is only half the
+ * job and nothing else on the page says so. Each step carries its own state, so
+ * a wallet that has registered and stopped is told exactly what is missing
+ * rather than shown a row of zeroes.
+ */
+.setup {
+  margin-bottom: 28px;
+  padding: 20px 22px;
+  border-radius: 18px;
+  background: var(--s2);
+  border: 1px solid var(--hair-2);
+}
+
+.setup-head h3 {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.setup-head p {
+  margin: 0;
+  max-width: 62ch;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.setup-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.setup-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.setup-steps li > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.setup-steps b {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.setup-steps span {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--muted);
+  max-width: 68ch;
+}
+
+/* The number and the tick occupy the same box, so a step does not shift when
+   it completes. */
+.setup-mark {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  border-radius: 999px;
+  border: 1px solid var(--hair-4);
+  background: var(--s1);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.setup-steps .is-done .setup-mark {
+  border-color: transparent;
+  background: var(--acc);
+  color: var(--on-acc);
+}
+
+.setup-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.setup-detail {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--hair);
+}
+
+.setup-detail p {
+  margin: 0 0 14px;
+  max-width: 68ch;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.setup-code {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--band);
+  border: 1px solid var(--hair);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  /* Commands are one per line and must not be re-wrapped into something that
+     would not run if pasted. */
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.setup-note {
+  margin-top: 14px !important;
+  margin-bottom: 0 !important;
+  color: var(--faint) !important;
+}
+
+@media (max-width: 640px) {
+  .setup {
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .setup-actions .btn {
+    flex: 1;
+  }
+}
